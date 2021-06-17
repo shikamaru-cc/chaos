@@ -1,5 +1,6 @@
 .PHONY: build
 build:
+	mkdir WORKSPACE && cp bochsrc WORKSPACE
 	bximage -mode=create -hd=10M -q ./WORKSPACE/disk.img
 	nasm -I ./boot/include -o ./boot/mbr.bin ./boot/mbr.S
 	dd if=./boot/mbr.bin of=./WORKSPACE/disk.img bs=512 count=1 conv=notrunc
@@ -13,5 +14,5 @@ bochs: build
 
 .PHONY: clean
 clean:
-	rm ./WORKSPACE/disk.img
+	rm -rf WORKSPACE
 	cd boot && rm *.bin

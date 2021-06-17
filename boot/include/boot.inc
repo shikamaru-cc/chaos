@@ -24,30 +24,30 @@ DESC_TYPE_CODE    equ             100000000000b
 DESC_TYPE_DATA    equ             001000000000b
 
 DESC_CODE_HIGH4 equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + \
-	DESC_L + DESC_AVL + DESC_LIMIT_CODE2 + \
-	DESC_P + DESC_DPL_0 + DESC_S_CODE + \
-	DESC_TYPE_CODE + 0x00
+  DESC_L + DESC_AVL + DESC_LIMIT_CODE2 + \
+  DESC_P + DESC_DPL_0 + DESC_S_CODE + \
+  DESC_TYPE_CODE + 0x00
 
 DESC_DATA_HIGH4 equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + \
-	DESC_L + DESC_AVL + DESC_LIMIT_DATA2 + \
-	DESC_P + DESC_DPL_0 + DESC_S_DATA + \
-	DESC_TYPE_DATA + 0x00
+  DESC_L + DESC_AVL + DESC_LIMIT_DATA2 + \
+  DESC_P + DESC_DPL_0 + DESC_S_DATA + \
+  DESC_TYPE_DATA + 0x00
 
 DESC_VIDEO_HIGH4 equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + \
-	DESC_L + DESC_AVL + DESC_LIMIT_VIDEO2 + DESC_P + \
-	DESC_DPL_0 + DESC_S_DATA + DESC_TYPE_DATA + 0x00
+  DESC_L + DESC_AVL + DESC_LIMIT_VIDEO2 + DESC_P + \
+  DESC_DPL_0 + DESC_S_DATA + DESC_TYPE_DATA + 0x00
 
 ; ----- selector -----
-RPL0 	equ 	 00b
-RPL1 	equ 	 01b
-RPL2 	equ 	 10b
-RPL3 	equ 	 11b
-TI_GDT	equ	000b
-TI_LDT	equ	100b
+RPL0    equ    00b
+RPL1    equ    01b
+RPL2    equ    10b
+RPL3    equ    11b
+TI_GDT  equ   000b
+TI_LDT  equ   100b
 
 ; ----- page table property -----
-PG_P 	equ 	  1b
-PG_RW_R equ 	 00b
-PG_RW_W equ 	 10b
-PG_US_S equ 	000b
-PG_US_U equ 	100b
+PG_P    equ     1b
+PG_RW_R equ    00b
+PG_RW_W equ    10b
+PG_US_S equ   000b
+PG_US_U equ   100b
