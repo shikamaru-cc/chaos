@@ -13,7 +13,7 @@ bins = 	boot/mbr.bin \
 
 kernel_objs = $(subst .c,.o,$(wildcard kernel/*.c))
 
-boot/%.bin: boot/%.S
+boot/%.bin: boot/%.asm
 	nasm -I ./boot/include -o $@ $<
 
 ld = build/i386-elf-gcc/bin/i386-elf-ld
