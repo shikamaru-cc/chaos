@@ -88,6 +88,15 @@ p_mode_start:
 
   mov byte [gs:160], 'P'
 
+.load_kernel_bin:
+  ; read from disk
+  mov eax, KERNEL_START_SECTOR
+  mov ebx, KERNEL_BIN_BASE_ADDR
+  ; num of sectors to load
+  mov ecx, 200
+
+  call rd_disk_m_32
+
   ; create PDE PTE for kernel
   call setup_page
 
@@ -110,8 +119,79 @@ p_mode_start:
 
   mov byte [gs:320], 'V'
 
-  jmp $
+enter_kernel:
+  call kernel_init
+  mov esp, 0xc009f000
+  jmp KERNEL_ENTRY_POINT
 
+;; ---------- read disk m 32 ----------
+;; eax = LBA sector no
+;; ebx = addr to load data
+;; ecx = num of pages to load
+rd_disk_m_32:
+  mov esi, eax    ; backup eax
+  mov edi, ecx    ; backup ecx
+; read disk:
+; step1: set num of sectors to load
+  mov dx, 0x1f2
+  mov al, cl
+  out dx, al      ; num of sectors to load
+
+  mov eax, esi    ; restore ax
+
+; step2: write LBA to 0x1f3~0x1f6
+  mov dx, 0x1f3   ; bit 7~0 -> 0x1f3
+  out dx, al
+
+  mov cl, 8       ; bit 15~8 -> 0x1f4
+  shr eax, cl
+  mov dx, 0x1f4
+  out dx, al
+
+  shr eax, cl     ; bit 23~16 -> 0x1f5
+  mov dx, 0x1f5
+  out dx, al
+
+  shr eax, cl
+  and al, 0x0f    ; bit 24~27 -> 0x1f6
+  or al, 0xe0     ; set bit 7~4 to 1110: lba mode
+  mov dx, 0x1f6
+  out dx, al
+
+; step3: write read instruction(0x20) to 0x1f7
+  mov dx, 0x1f7
+  mov al, 0x20
+  out dx, al
+
+; step4: check disk status
+ .not_ready:
+  ; the same port, out: write instruction,
+  ; in: read disk status
+  nop
+  in al, dx
+  and al, 0x88    ; bit4 = 1 -> disk data ready
+                  ; bit7 = 1 -> disk busy
+  cmp al, 0x08
+  jnz .not_ready
+; step5: load data from port 0x1f0
+  ; di = num of sectors to load
+  ; 1 sector = 512 bytes, each time load 1 word
+  ; totally load 512/2 * di times
+  mov eax, edi
+  mov edx, 256
+  mul edx
+  mov ecx, eax
+
+  mov dx, 0x1f0
+ .go_on_read:
+  in ax, dx
+  mov [ebx], ax
+  add ebx, 2
+  loop .go_on_read
+  ret
+;; ---------- end read disk m 32 ----------
+
+;; ---------- create pde ----------
 ; create page dir and page ent
 setup_page:
   ; clear page dir space
@@ -121,7 +201,6 @@ setup_page:
   mov byte [PAGE_DIR_TABLE_POS+esi], 0
   inc esi
   loop .clear_page_dir
-
 ; create PDE
 .create_pde:
   ; The first page table is located at the position
@@ -166,4 +245,52 @@ setup_page:
   inc esi
   add eax, 0x1000
   loop .create_kernel_pde
+  ret
+;; ---------- end create pde ----------
+
+;; ---------- kernel init ----------
+kernel_init:
+  xor eax, eax
+  xor ebx, ebx    ; ebx: record addr of program header
+  xor ecx, ecx    ; cx:  the num of program headers
+  xor edx, edx    ; dx:  size of program header
+
+  ; off 28: e_phoff
+  mov ebx, [KERNEL_BIN_BASE_ADDR+28]
+  add ebx, KERNEL_BIN_BASE_ADDR
+  ; off 44: e_phnum
+  mov cx, [KERNEL_BIN_BASE_ADDR+44]
+  ; off 42: e_phentsize
+  mov dx, [KERNEL_BIN_BASE_ADDR+42]
+
+.each_segment:
+  cmp byte [ebx+0], PT_NULL
+  je .PTNULL
+
+  push dword [ebx+16]
+  mov eax, [ebx+4]
+  add eax, KERNEL_BIN_BASE_ADDR
+  push eax
+  push dword [ebx+8]
+
+  call mem_cpy
+  add esp, 12
+.PTNULL:
+  add ebx, edx
+  loop .each_segment
+  ret
+
+mem_cpy:
+  cld
+  push ebp
+  mov ebp, esp
+  push ecx
+
+  mov edi, [ebp+8]    ; dst
+  mov esi, [ebp+12]   ; src
+  mov ecx, [ebp+16]   ; size
+  rep movsb
+
+  pop ecx
+  pop ebp
   ret
