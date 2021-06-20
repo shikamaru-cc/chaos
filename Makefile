@@ -1,3 +1,6 @@
+ld = build/i386-elf-gcc/bin/i386-elf-ld
+gcc = build/i386-elf-gcc/bin/i386-elf-gcc
+
 all: build
 
 # We need to install i386 tools for cross compile
@@ -7,24 +10,25 @@ build/init.mk:
 	cd build && ../tools/install_i386_tools.sh
 	touch $@
 
-bins = 	boot/mbr.bin \
-				boot/loader.bin \
-				kernel/kernel.bin
-
-kernel_objs = $(subst .c,.o,$(wildcard kernel/*.c))
+bins = boot/mbr.bin \
+	boot/loader.bin \
+	kernel/kernel.bin
 
 boot/%.bin: boot/%.asm
-	nasm -I ./boot/include -o $@ $<
+	nasm -I boot/include -o $@ $<
 
-ld = build/i386-elf-gcc/bin/i386-elf-ld
+lib_kernel_objs = $(subst .asm,.o,$(wildcard lib/kernel/*.asm))
+kernel_objs = $(subst .c,.o,$(wildcard kernel/*.c)) \
+	$(lib_kernel_objs)
+
+lib/kernel/%.o: lib/kernel/%.asm
+	nasm -f elf -o $@ $<
+
+kernel/%.o: kernel/%.c
+	$(gcc) -I lib/kernel/ -c -o $@ $<
 
 kernel/kernel.bin: $(kernel_objs)
-	$(ld) $< -Ttext 0xc0001500 -e main -o $@
-
-gcc = build/i386-elf-gcc/bin/i386-elf-gcc
-
-%.o:%.c
-	$(gcc) -c -o $@ $<
+	$(ld) $^ -Ttext 0xc0001500 -e main -o $@
 
 WORKSPACE/disk.img:
 	mkdir WORKSPACE
