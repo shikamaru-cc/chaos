@@ -25,6 +25,42 @@ put_str:
   pop ebx
   ret
 
+global put_int
+put_int:
+  pushad
+  mov eax, [esp+36]
+
+  xor ecx, ecx
+  dec esp
+  inc ecx
+
+  mov byte [esp], 0     ; add \0 to end
+
+  mov esi, 10
+.digit_to_char:
+  xor edx, edx
+  div esi
+  add edx, '0'
+
+  dec esp
+  inc ecx
+
+  mov byte [esp], dl
+
+  cmp eax, 0
+  jnz .digit_to_char
+
+  mov ebx, esp
+  sub esp, 4
+  mov dword [esp], ebx
+  call put_str
+
+  add esp, 4
+  add esp, ecx
+  popad
+  ret
+  
+
 global put_char
 put_char:
 ;; pushad push eax, ecx, edx, original esp, ebp,
