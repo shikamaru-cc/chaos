@@ -122,7 +122,10 @@ p_mode_start:
 enter_kernel:
   call kernel_init
   mov esp, 0xc009f000
-  jmp KERNEL_ENTRY_POINT
+  ;; 24 -- the offset of e_entry in ELF header
+  ;; jmp to kernel entry point
+  mov eax, [KERNEL_BIN_BASE_ADDR+24]
+  jmp eax
 
 ;; ---------- read disk m 32 ----------
 ;; eax = LBA sector no
