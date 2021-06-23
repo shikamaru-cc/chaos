@@ -3,6 +3,7 @@
 %define ZERO push 0         ; no error code, push 0
 
 extern put_str
+extern intr_handler_table
 
 section .data
 intr_str db "interrupt occur!", 0xa, 0
@@ -13,22 +14,38 @@ intr_entry_table:
 section .text
 intr_%1_entry:
   %2
-  push intr_str
-  call put_str
-  add esp, 4
+  push ds
+  push es
+  push fs
+  push gs
+  pushad
 
   ; send 0x20(EOI) to master and slave
   mov al, 0x20
   out 0xa0, al
   out 0x20, al
 
-  add esp, 4      ; skip error code
-  iret
+  push %1                           ; push interrupt vector
+
+  call [intr_handler_table + %1*4]  ; call C handler function 
+  jmp intr_exit
 
 section .data
   dd intr_%1_entry
 
 %endmacro
+
+section .text
+global intr_exit
+intr_exit:
+  add esp, 4                        ; skip int number
+  popad
+  pop gs
+  pop fs
+  pop es
+  pop ds
+  add esp, 4                        ; skip error code
+  iretd
 
 VECTOR 0x00, ZERO
 VECTOR 0x01, ZERO

@@ -3,6 +3,7 @@
 
 void main(void){
   init_all();
-  put_str("\nWelcome to Chaos ..");
+  put_str("\nWelcome to Chaos ..\n");
+  asm volatile("sti");
   while(1);
 }
