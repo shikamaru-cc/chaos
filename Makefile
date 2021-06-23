@@ -19,13 +19,17 @@ boot/%.bin: boot/%.asm
 
 lib_kernel_objs = $(subst .asm,.o,$(wildcard lib/kernel/*.asm))
 kernel_objs = $(subst .c,.o,$(wildcard kernel/*.c)) \
+	$(subst .asm,.o,$(wildcard kernel/*.asm)) \
 	$(lib_kernel_objs)
 
 lib/kernel/%.o: lib/kernel/%.asm
 	nasm -f elf -o $@ $<
 
 kernel/%.o: kernel/%.c
-	$(gcc) -I lib/kernel/ -c -o $@ $<
+	$(gcc) -g -I lib/kernel/ -I lib/ -c -o $@ $<
+
+kernel/%.o: kernel/%.asm
+	nasm -f elf -o $@ $<
 
 kernel/kernel.bin: $(kernel_objs)
 	$(ld) $^ -Ttext 0xc0001500 -e main -o $@
@@ -45,9 +49,12 @@ build: build/init.mk $(bins) WORKSPACE/disk.img
 	dd if=kernel/kernel.bin of=WORKSPACE/disk.img bs=512 count=200 \
 	seek=9 conv=notrunc
 
+bochs = build/bochs/bochs
 .PHONY: bochs
 bochs: build
-	cd tools && bochs -f bochsrc
+	$(bochs) -f tools/bochsrc
+bochs-gdb: build
+	$(bochs) -f tools/gdb-bochsrc
 
 .PHONY: clean
 clean:

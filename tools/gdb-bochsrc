@@ -9,5 +9,7 @@ log: WORKSPACE/bochs.out
 
 mouse: enabled=0
 
+gdbstub: enabled=1, port=1234, text_base=0, data_base=0, bss_base=0
+
 ata0: enabled=1,ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
 ata0-master: type=disk, path="WORKSPACE/disk.img", cylinders=20, heads=16, spt=63
