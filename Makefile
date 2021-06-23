@@ -48,18 +48,20 @@ build: build/init.mk $(bins) WORKSPACE/disk.img
 	@echo "build kernel"
 	dd if=kernel/kernel.bin of=WORKSPACE/disk.img bs=512 count=200 \
 	seek=9 conv=notrunc
+	@echo "dump kernel.bin"
+	objdump -D kernel/kernel.bin > kernel/kernel.d
 
 bochs = build/bochs/bochs
 .PHONY: bochs
 # TODO: build/bochs/bochs has some bug in set breakpoints
 # change to another version
 bochs: build
-	bochs -f tools/bochsrc
+	bochs -q -f tools/bochsrc
 bochs-gdb: build
-	$(bochs) -f tools/gdb-bochsrc
+	$(bochs) -q -f tools/gdb-bochsrc
 
 .PHONY: clean
 clean:
 	rm -rf WORKSPACE
 	cd boot && rm -f *.bin
-	cd kernel && rm -f *.bin *.o
+	cd kernel && rm -f *.bin *.o *.d
