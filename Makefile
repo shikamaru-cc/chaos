@@ -51,8 +51,10 @@ build: build/init.mk $(bins) WORKSPACE/disk.img
 
 bochs = build/bochs/bochs
 .PHONY: bochs
+# TODO: build/bochs/bochs has some bug in set breakpoints
+# change to another version
 bochs: build
-	$(bochs) -f tools/bochsrc
+	bochs -f tools/bochsrc
 bochs-gdb: build
 	$(bochs) -f tools/gdb-bochsrc
 
