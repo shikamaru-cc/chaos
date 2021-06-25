@@ -1,6 +1,6 @@
 #include "global.h"
 #include "interrupt.h"
-#include "io.h"
+#include "kernel/io.h"
 
 #define PIC_M_CTRL  0x20        // Master control port
 #define PIC_M_DATA  0x21        // Master data port

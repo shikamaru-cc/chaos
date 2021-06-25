@@ -1,6 +1,6 @@
 #include "init.h"
 #include "debug.h"
-#include "print.h"
+#include "kernel/print.h"
 
 int main(void) {
   init_all();
