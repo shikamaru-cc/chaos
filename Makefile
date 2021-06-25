@@ -72,3 +72,7 @@ clean:
 	rm -rf WORKSPACE
 	cd boot && rm -f *.bin
 	cd kernel && rm -f *.bin *.o *.d
+	cd device && rm -f *.o
+	cd lib && rm -f *.o
+	cd lib/kernel && rm -f *.o
+	cd lib/user && rm -f *.o
