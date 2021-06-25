@@ -1,7 +1,7 @@
-#include "print.h"
 #include "stdint.h"
 #include "timer.h"
-#include "io.h"
+#include "kernel/io.h"
+#include "kernel/print.h"
 
 #define IRQ0_FREQUENCY    100
 #define INPUT_FREQUENCY   1193180 /* timer device CLK frequency */
@@ -18,7 +18,7 @@ static void timer_set_frequence(uint8_t counter_port,
                                 uint8_t counter_mode,
                                 uint16_t counter_value) {
   outb(PIT_CONTROL_PORT, 
-        (uint8_t)(counter_port << 6 | rwl << 4 | counter_mode << 1));
+        (uint8_t)(counter_no << 6 | rwl << 4 | counter_mode << 1));
   /* write low 8 bit */
   outb(counter_port, (uint8_t)counter_value);
   /* write high 8 bit */
