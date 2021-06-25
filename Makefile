@@ -1,5 +1,21 @@
-ld = build/i386-elf-gcc/bin/i386-elf-ld
-gcc = build/i386-elf-gcc/bin/i386-elf-gcc
+ENTRY_POINT = 0xc0001500
+BINS = boot/mbr.bin boot/loader.bin kernel/kernel.bin
+
+LIB_K_OBJS = $(subst .asm,.o,$(wildcard lib/kernel/*.asm))
+D_OBJS = $(subst .c,.o,$(wildcard device/*.c))
+OBJS = $(subst .c,.o,$(wildcard kernel/*.c)) \
+       $(subst .asm,.o,$(wildcard kernel/*.asm)) \
+       $(D_OBJS) \
+       $(LIB_K_OBJS)
+
+AS = nasm
+CC = build/i386-elf-gcc/bin/i386-elf-gcc
+LD = build/i386-elf-gcc/bin/i386-elf-ld
+LIB = -I lib/ -I kernel/ -I device/
+ASFLAGS = -f elf
+CFLAGS = -Wall $(LIB) -c -fno-builtin -W -Wstrict-prototypes \
+         -Wmissing-prototypes -g -D DEBUG
+LDFLAGS = -Ttext $(ENTRY_POINT) -e main
 
 all: build
 
@@ -10,40 +26,27 @@ build/init.mk:
 	cd build && ../tools/install_i386_tools.sh
 	touch $@
 
-bins = boot/mbr.bin \
-	boot/loader.bin \
-	kernel/kernel.bin
-
+# build boot binary
 boot/%.bin: boot/%.asm
-	nasm -I boot/include -o $@ $<
+	$(AS) -I boot/include -o $@ $<
 
-lib_kernel_objs = $(subst .asm,.o,$(wildcard lib/kernel/*.asm))
-kernel_objs = $(subst .c,.o,$(wildcard kernel/*.c)) \
-	$(subst .asm,.o,$(wildcard kernel/*.asm)) \
-	$(subst .c,.o,$(wildcard device/*.c)) \
-	$(lib_kernel_objs)
+# Build object files
+# TODO: add dependency for .h file
+%.o: %.c
+	$(CC) $(CFLAGS) -o $@ $<
+%.o: %.asm
+	$(AS) $(ASFLAGS) -o $@ $<
 
-device/%.o: device/%.c
-	$(gcc) -g -I lib/kernel/ -I lib/ -I device/ -c -o $@ $<
-
-lib/kernel/%.o: lib/kernel/%.asm
-	nasm -f elf -o $@ $<
-
-kernel/%.o: kernel/%.c
-	$(gcc) -g -I lib/kernel/ -I lib/ -I device/ -c -o $@ $<
-
-kernel/%.o: kernel/%.asm
-	nasm -f elf -o $@ $<
-
-kernel/kernel.bin: $(kernel_objs)
-	$(ld) $^ -Ttext 0xc0001500 -e main -o $@
+# Link
+kernel/kernel.bin: $(OBJS)
+	$(LD) $(LDFLAGS) $^ -o $@
 
 WORKSPACE/disk.img:
 	mkdir WORKSPACE
 	bximage -mode=create -hd=10M -q ./WORKSPACE/disk.img
 
 .PHONY: build
-build: build/init.mk $(bins) WORKSPACE/disk.img
+build: build/init.mk $(BINS) WORKSPACE/disk.img
 	@echo "build mbr"
 	dd if=./boot/mbr.bin of=./WORKSPACE/disk.img bs=512 count=1 conv=notrunc
 	@echo "build loader"
@@ -55,14 +58,14 @@ build: build/init.mk $(bins) WORKSPACE/disk.img
 	@echo "dump kernel.bin"
 	objdump -D kernel/kernel.bin > kernel/kernel.d
 
-bochs = build/bochs/bochs
+BOCHS = build/bochs/bochs
 .PHONY: bochs
 # TODO: build/bochs/bochs has some bug in set breakpoints
 # change to another version
 bochs: build
 	bochs -q -f tools/bochsrc
 bochs-gdb: build
-	$(bochs) -q -f tools/gdb-bochsrc
+	$(BOCHS) -q -f tools/gdb-bochsrc
 
 .PHONY: clean
 clean:
