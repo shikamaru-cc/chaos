@@ -18,6 +18,15 @@
 #define PIC_S_ICW4  0x01        // ICW4: 8086 mode, no auto EOI
 
 #define IDT_DESC_CNT 0x21       // num of interrupt types
+
+struct gate_desc {
+  uint16_t func_offset_low_word;
+  uint16_t selector;
+  uint8_t dcount;
+  uint8_t attribute;
+  uint16_t func_offset_high_word;
+};
+
 static struct gate_desc idt[IDT_DESC_CNT]; // interrupt descriptor table
 
 /* intr_entry_table is the entry point of interrupt, define in kernel.asm, it
@@ -26,6 +35,7 @@ extern intr_handler intr_entry_table[IDT_DESC_CNT];
 
 /* intr_handler_table is the actual handler of interrupt */
 intr_handler intr_handler_table[IDT_DESC_CNT];
+
 /* interrupt name */
 char* intr_name[IDT_DESC_CNT];
 
@@ -40,6 +50,8 @@ static void general_intr_handler(uint8_t intr_n) {
   put_str(intr_name[intr_n]);
   put_char('\n');
 }
+
+/* =========================== Init IDT and PIC ============================= */
 
 static void make_idt_desc(struct gate_desc* p_gdesc, 
                           uint8_t attr, intr_handler fn) {
@@ -123,4 +135,37 @@ void idt_init(void) {
   uint64_t idt_operand = ((sizeof(idt) - 1)|((uint64_t)((uint32_t)idt << 16)));
   asm volatile("lidt %0": : "m" (idt_operand));
   put_str("idt_init done\n");
+}
+
+/* ========== Utils for enabling and disabling interrupt flags ============= */
+
+#define EFLAGS_IF   0x00000200
+#define GET_EFLAGS(EFLAG_VAR) asm volatile("pushfl; popl %0" : "=g"(EFLAG_VAR))
+
+/* set interrupt flag and return old status */
+enum intr_status intr_enable(void) {
+  enum intr_status old_status = intr_get_status(); 
+  if (old_status == INTR_OFF) {
+    asm volatile("sti");
+  }
+  return old_status;
+}
+
+/* clean interrupt flag and return old status */
+enum intr_status intr_disable(void) {
+  enum intr_status old_status = intr_get_status();
+  if (old_status == INTR_ON) {
+    asm volatile("cli");
+  }
+  return old_status;
+}
+
+enum intr_status intr_get_status(void) {
+  uint32_t eflags;
+  GET_EFLAGS(eflags);
+  return (eflags & EFLAGS_IF) ? INTR_ON : INTR_OFF;
+}
+
+enum intr_status intr_set_status(enum intr_status status) {
+  return status == INTR_ON ? intr_enable() : intr_disable();
 }
