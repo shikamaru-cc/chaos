@@ -9,8 +9,8 @@
  *      example: [a-d]x
  */
 
-#ifndef __LIB_IO_H
-#define __LIB_IO_H
+#ifndef __LIB_KERNEL_IO_H
+#define __LIB_KERNEL_IO_H
 #include "stdint.h"
 
 // out one byte to given port
