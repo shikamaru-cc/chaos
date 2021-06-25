@@ -1,6 +1,8 @@
 #ifndef __LIB_STRING_H
 #define __LIB_STRING_H
 #include "stdint.h"
+// TODO: move definition of NULL to other place
+#define NULL ((void*)0)
 void memset(void* dst_, uint8_t value, uint32_t size);
 void memcpy(void* dst_, const void* src_, uint32_t size);
 int memcmp(const void* a_, const void* b_, uint32_t size);
