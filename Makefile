@@ -20,13 +20,17 @@ boot/%.bin: boot/%.asm
 lib_kernel_objs = $(subst .asm,.o,$(wildcard lib/kernel/*.asm))
 kernel_objs = $(subst .c,.o,$(wildcard kernel/*.c)) \
 	$(subst .asm,.o,$(wildcard kernel/*.asm)) \
+	$(subst .c,.o,$(wildcard device/*.c)) \
 	$(lib_kernel_objs)
+
+device/%.o: device/%.c
+	$(gcc) -g -I lib/kernel/ -I lib/ -I device/ -c -o $@ $<
 
 lib/kernel/%.o: lib/kernel/%.asm
 	nasm -f elf -o $@ $<
 
 kernel/%.o: kernel/%.c
-	$(gcc) -g -I lib/kernel/ -I lib/ -c -o $@ $<
+	$(gcc) -g -I lib/kernel/ -I lib/ -I device/ -c -o $@ $<
 
 kernel/%.o: kernel/%.asm
 	nasm -f elf -o $@ $<
