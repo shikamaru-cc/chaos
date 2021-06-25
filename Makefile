@@ -1,11 +1,16 @@
 ENTRY_POINT = 0xc0001500
 BINS = boot/mbr.bin boot/loader.bin kernel/kernel.bin
 
-LIB_K_OBJS = $(subst .asm,.o,$(wildcard lib/kernel/*.asm))
+LIB_OBJS = $(subst .asm,.o,$(wildcard lib/*.asm)) \
+           $(subst .c,.o,$(wildcard lib/*.c))
+LIB_K_OBJS = $(subst .asm,.o,$(wildcard lib/kernel/*.asm)) \
+             $(subst .c,.o,$(wildcard lib/kernel/*.c))
 D_OBJS = $(subst .c,.o,$(wildcard device/*.c))
-OBJS = $(subst .c,.o,$(wildcard kernel/*.c)) \
-       $(subst .asm,.o,$(wildcard kernel/*.asm)) \
+K_OBJS = $(subst .c,.o,$(wildcard kernel/*.c)) \
+         $(subst .asm,.o,$(wildcard kernel/*.asm))
+OBJS = $(K_OBJS) \
        $(D_OBJS) \
+       $(LIB_OBJS) \
        $(LIB_K_OBJS)
 
 AS = nasm
