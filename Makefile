@@ -13,8 +13,13 @@ CC = build/i386-elf-gcc/bin/i386-elf-gcc
 LD = build/i386-elf-gcc/bin/i386-elf-ld
 LIB = -I lib/ -I kernel/ -I device/
 ASFLAGS = -f elf
+
+DEBUG = 0
 CFLAGS = -Wall $(LIB) -c -fno-builtin -W -Wstrict-prototypes \
-         -Wmissing-prototypes -g -D DEBUG
+         -Wmissing-prototypes -g
+ifeq ($(DEBUG), 1)
+  CFLAGS += -D DEBUG
+endif
 LDFLAGS = -Ttext $(ENTRY_POINT) -e main
 
 all: build
@@ -46,7 +51,7 @@ WORKSPACE/disk.img:
 	bximage -mode=create -hd=10M -q ./WORKSPACE/disk.img
 
 .PHONY: build
-build: build/init.mk $(BINS) WORKSPACE/disk.img
+build build-debug: build/init.mk $(BINS) WORKSPACE/disk.img
 	@echo "build mbr"
 	dd if=./boot/mbr.bin of=./WORKSPACE/disk.img bs=512 count=1 conv=notrunc
 	@echo "build loader"

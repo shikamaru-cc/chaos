@@ -11,6 +11,12 @@ Simple run:
 % make
 ```
 
+To enable debug mode, add environment variable DEBUG=1
+
+``` shell
+% make DEBUG=1
+```
+
 Then the disk image file will be created at `WORKSPACE/disk.img`.
 
 It would be very slow when first build the project, since we need to fetch and
