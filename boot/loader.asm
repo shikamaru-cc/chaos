@@ -1,7 +1,10 @@
 %include "boot.inc"
 section loader vstart=LOADER_BASE_ADDR
   LOADER_STACK_TOP equ LOADER_BASE_ADDR
+entry:
   jmp loader_start
+  times 0x100-($-$$) db 0
+  total_mem_bytes dd 0
 
 [bits 16]
 ; build gdt and internal descriptor
@@ -54,6 +57,28 @@ loader_start:
   mov dx, 0x1800
   int 0x10
 
+; use int 0x15 func 0xE801 to get total memory size
+get_memory_size:
+  mov ax, 0xE801
+  int 0x15
+
+  mov cx, 1024
+  mul cx
+  shl edx, 16
+  and eax, 0x0000FFFF
+  or edx, eax
+  add edx, 0x100000
+  mov esi, edx
+
+  xor eax, eax
+  mov ax, bx
+  mov ecx, 0x10000
+  mul ecx
+
+  add esi, eax
+  mov [total_mem_bytes], esi
+
+enter_protect_mode:
   ; ready to get in protect mode
   ; 1. open A20
   ; 2. load GDT
@@ -87,6 +112,7 @@ p_mode_start:
   mov gs, ax
 
   mov byte [gs:160], 'P'
+
 
 .load_kernel_bin:
   ; read from disk
@@ -210,8 +236,8 @@ setup_page:
   ; after pde, namely PAGE_DIR_TABLE_POS+4k(0x1000)
   mov eax, PAGE_DIR_TABLE_POS
   add eax, 0x1000   ; eax point to pte 1
-  mov ebx, eax    ; save pa of 1st pte for
-        ; create pte below
+  mov ebx, eax      ; save pa of 1st pte for
+                    ; create pte below
   or eax, PG_US_U|PG_RW_W|PG_P
   mov [PAGE_DIR_TABLE_POS + 0x0], eax
 
@@ -251,7 +277,11 @@ setup_page:
   ret
 ;; ---------- end create pde ----------
 
-;; ---------- kernel init ----------
+;; ============================ kernel init ====================================
+;; In previous stage, we load kernel image at KERNEL_BIN_BASE_ADDR(0x70000). Now
+;; move kernel image to the actual address according to program headers(start
+;; at 0xc0001500. And we have set virtual space map for 0xc0000000~0xc00fffff
+;; -> 0x00000000~0x000fffff.
 kernel_init:
   xor eax, eax
   xor ebx, ebx    ; ebx: record addr of program header
@@ -270,11 +300,11 @@ kernel_init:
   cmp byte [ebx+0], PT_NULL
   je .PTNULL
 
-  push dword [ebx+16]
+  push dword [ebx+16]           ; size
   mov eax, [ebx+4]
   add eax, KERNEL_BIN_BASE_ADDR
-  push eax
-  push dword [ebx+8]
+  push eax                      ; src
+  push dword [ebx+8]            ; dst
 
   call mem_cpy
   add esp, 12
