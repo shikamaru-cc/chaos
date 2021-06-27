@@ -1,5 +1,7 @@
+#include "debug.h"
 #include "memory.h"
 #include "stdint.h"
+#include "string.h"
 #include "kernel/print.h"
 
 #define PG_SIZE 4096
@@ -17,6 +19,10 @@
 /* The address storing total memory size, defined in boot/loader.asm */
 #define MEMORY_TOTAL_BYTES_ADDR 0xa00
 
+/* Macros to find PDE and PTE index for a given address */
+#define PDE_IDX(addr) (addr >> 22)
+#define PTE_IDX(addr) ((addr << 10) >> 22)
+
 struct pool {
   struct bitmap pool_bitmap;
   uint32_t phy_addr_start;
@@ -26,6 +32,120 @@ struct pool {
 struct pool kernel_pool, user_pool;
 
 struct virtual_addr kernel_vaddr;
+
+/* Get pg_cnt continuous virtual pages, return the start va for pages for ok,
+ * NULL for false */
+static void* vaddr_get(enum pool_flags pf, uint32_t pg_cnt) {
+  int bit_start_idx;
+  uint32_t cnt = 0;
+  uint32_t vaddr_start;
+  if (pf == PF_KERNEL) {
+    /* Search bitmap for available pages */
+    bit_start_idx = bitmap_scan(&kernel_vaddr.vaddr_bitmap, pg_cnt);
+    if (bit_start_idx < 0) {
+      return NULL;
+    }
+    /* Set vaddr bitmap */
+    while (cnt < pg_cnt) {
+      bitmap_set(&kernel_vaddr.vaddr_bitmap, bit_start_idx + cnt);
+      cnt++;
+    }
+    vaddr_start = kernel_vaddr.vaddr_start + bit_start_idx * PG_SIZE;
+  } else {
+    /* TODO: get user vaddr */
+  }
+
+  return (void*)vaddr_start;
+}
+
+/* pte_ptr
+ * Methods to construct the PTE virtual address for a given virtual, use it to
+ * modify PTE.
+ * 0xffc00000 : set the first 10 bit to 1, point to PDE itself
+ * PDE_IDX(vaddr) << 12 : set the second 10 bit as PDE index of virtual
+ * address, use to search PTE, then we map out virtual address to physical
+ * address of PTE.
+ * (PTE_IDX(vaddr) * 4) : the last 12 bit offset in PTE 
+ */
+uint32_t* pte_ptr(uint32_t vaddr) {
+  return (uint32_t*)(0xffc00000 + (PDE_IDX(vaddr) << 12) +
+            (PTE_IDX(vaddr) * 4));
+}
+
+/* pde_ptr
+ * Methods to construct the PDE virtual address for a given virtual, use it to
+ * modify PDE.
+ * 0xfffff000 : set the first 20 bit to 1, then we map our virtual address to
+ * physical address of PDE.
+ * PDE_IDX(vaddr) * 4 : the last 12 bit offset in PDE
+ */
+uint32_t* pde_ptr(uint32_t vaddr) {
+  return (uint32_t*)(0xfffff000 + (PDE_IDX(vaddr) * 4));
+}
+
+/* Allocate one page in m_pool, return the address */
+static void* palloc(struct pool* m_pool) {
+  int bit_idx;
+  bit_idx = bitmap_scan(&m_pool->pool_bitmap, 1);
+  if (bit_idx < 0) {
+    return NULL;
+  }
+  bitmap_set(&m_pool->pool_bitmap, bit_idx);
+  return (void*)(m_pool->phy_addr_start + bit_idx * PG_SIZE);
+}
+
+/* Add map of given _vaddr and _page_phyaddr to page table */
+static void page_table_add(void* _vaddr, void* _page_phyaddr) {
+  uint32_t vaddr = (uint32_t)_vaddr;
+  uint32_t page_phyaddr = (uint32_t)_page_phyaddr;
+  uint32_t* pde = pde_ptr(vaddr);
+  uint32_t* pte = pte_ptr(vaddr);
+  /* Create PDE if not exist */
+  if (!(*pde & PG_P_1)) {
+    uint32_t* pde_phyaddr = palloc(&kernel_pool);
+    *pde = ((uint32_t)pde_phyaddr | PG_P_1 | PG_RW_W | PG_US_U);
+    /* Clean the new page table */
+    memset((void*)((int)pte & 0xfffff000), 0, PG_SIZE);
+  }
+  /* Create PTE if not exist */
+  if (!(*pte & PG_P_1)) {
+    *pte = ((uint32_t)page_phyaddr | PG_P_1 | PG_RW_W | PG_US_U);
+  } else {
+    PANIC("pte exist!");
+  }
+}
+
+/* Allocate pg_cnt pages */
+void* malloc_page(enum pool_flags pf, uint32_t pg_cnt) {
+  /* Allocate virtual space pages */
+  void* vaddr_start = vaddr_get(pf, pg_cnt);
+  if (vaddr_start == NULL) {
+    return NULL;
+  }
+
+  /* Allocate physical space pages */
+  uint32_t vaddr = (uint32_t)vaddr_start;
+  struct pool* m_pool = (pf == PF_KERNEL) ? &kernel_pool : &user_pool;
+  while (pg_cnt-- > 0) {
+    void* phyaddr = palloc(m_pool);
+    if (phyaddr == NULL) {
+      /* TODO: collect fail allocate memory */
+      return NULL;
+    }
+    /* Map virtual pages and physical pages */
+    page_table_add((void*)vaddr, phyaddr);
+    vaddr += PG_SIZE;
+  }
+  return vaddr_start;
+}
+
+void* get_kernel_pages(uint32_t pg_cnt) {
+  void* vaddr = malloc_page(PF_KERNEL, pg_cnt);
+  if (vaddr != NULL) {
+    memset(vaddr, 0, pg_cnt * PG_SIZE);
+  }
+  return vaddr;
+}
 
 static void mem_pool_init(uint32_t all_mem) {
   put_str("    mem_pool init start\n");
