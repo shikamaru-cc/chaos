@@ -5,6 +5,11 @@
 #include "memory.h"
 #include "kernel/print.h"
 
+void main_thread(void* arg) {
+  put_str((char*)arg);
+  while(1);
+}
+
 int main(void) {
   put_str("\nWelcome to Chaos ..\n");
   init_all();
@@ -15,6 +20,6 @@ int main(void) {
   put_int((uint32_t)addr);  
   put_str("\n");
 
-  while(1);
+  struct task_status* thread = thread_start("hello", 1, main_thread, "world");  
   return 0;
 }
