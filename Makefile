@@ -27,12 +27,15 @@ ifeq ($(DEBUG), 1)
 endif
 LDFLAGS = -Ttext $(ENTRY_POINT) -e main
 
+# add i386-elf-gcc library
+export LD_LIBRARY_PATH=/usr/local/lib
+
 all: build
 
 # We need to install i386 tools for cross compile
 build/init.mk:
 	@echo "fetching i386 elf tools"
-	mkdir build
+	mkdir -p build
 	cd build && ../tools/install_i386_tools.sh
 	touch $@
 

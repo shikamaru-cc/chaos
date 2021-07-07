@@ -8,19 +8,21 @@
 # https://steemit.com/esteem/@geyu/10-cross-compiler-i386-elf-gcc 
 #
 
+set -euxo pipefail
+
 gmp=gmp-4.3.2
 mpfr=mpfr-2.4.2
-mpc=mpc-0.8.1
+mpc=mpc-1.0.1
 
 # build gmp
 
 if [ ! -f gmp.mk ]; then
-  curl -O ftp://gcc.gnu.org/pub/gcc/infrastructure/$gmp.tar.bz2
+  curl -O http://mirrors.nju.edu.cn/gnu/gmp/$gmp.tar.bz2
   tar xf $gmp.tar.bz2
   pushd $gmp 
   ./configure
   make
-  make install
+  sudo make install
   popd
   touch gmp.mk
 fi
@@ -29,12 +31,12 @@ fi
 # build mpfr
 
 if [ ! -f mpfr.mk ]; then
-  curl -O ftp://gcc.gnu.org/pub/gcc/infrastructure/$mpfr.tar.bz2
+  curl -O http://mirrors.nju.edu.cn/gnu/mpfr/$mpfr.tar.bz2
   tar xf $mpfr.tar.bz2
   pushd $mpfr 
   ./configure
   make
-  make install
+  sudo make install
   popd
   touch mpfr.mk
 fi
@@ -42,12 +44,12 @@ fi
 # build mpc
 
 if [ ! -f mpc.mk ]; then
-  curl -O ftp://gcc.gnu.org/pub/gcc/infrastructure/$mpc.tar.bz
-  tar xf $mpc.tar.bz
+  curl -O http://mirrors.nju.edu.cn/gnu/mpc/$mpc.tar.gz
+  tar xf $mpc.tar.gz
   pushd $mpc
   ./configure
   make
-  make install
+  sudo make install
   popd
   touch mpc.mk
 fi
@@ -60,7 +62,7 @@ binutils=binutils-2.24
 
 if [ ! -f binutils.mk ]; then
   # If the link 404's, look for a more recent version
-  curl -O http://ftp.gnu.org/gnu/binutils/$binutils.tar.gz 
+  curl -O http://mirrors.nju.edu.cn/gnu/binutils/$binutils.tar.gz
   tar xf $binutils.tar.gz
 
   mkdir binutils-build
@@ -80,32 +82,34 @@ fi
 # build gcc-4.9.1
 
 if [ ! -f gcc.mk ]; then
-  curl -O https://ftp.gnu.org/gnu/gcc/gcc-4.9.1/gcc-4.9.1.tar.bz2
+  curl -O http://mirrors.nju.edu.cn/gnu/gcc/gcc-4.9.1/gcc-4.9.1.tar.bz2
   tar xf gcc-4.9.1.tar.bz2
 
   mkdir gcc-build
   pushd gcc-build
   ../gcc-4.9.1/configure \
     --target=$TARGET \
-    --prefix="$PREFIX" \
+    --prefix=$PREFIX \
     --disable-nls \
     --disable-libssp \
     --enable-languages=c \
     --without-headers
   make all-gcc 
-  make all-target-libgcc 
+  # make all-target-libgcc
   make install-gcc 
-  make install-target-libgcc
+  # make install-target-libgcc
   popd
   touch gcc.mk
 fi
 
 # build bochs with --enable-gdb-stub
 
+bochs_url='https://jaist.dl.sourceforge.net/project/bochs/bochs/2.6.11/bochs-2.6.11.tar.gz'
+
 if [ ! -f bochs.mk ]; then
-  curl -O https://bochs.sourceforge.io/svn-snapshot/bochs-20210618.tar.gz
-  tar -xvf bochs-20210618.tar.gz
-  mv bochs-20210618 bochs
+  curl -O $bochs_url
+  tar -xvf bochs-2.6.11.tar.gz
+  mv bochs-2.6.11 bochs
   pushd bochs
   ./configure --enable-gdb-stub
   make
