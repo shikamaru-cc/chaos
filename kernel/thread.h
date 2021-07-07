@@ -53,15 +53,26 @@ struct thread_stack {
 
 /* process control block */
 struct task_struct {
-  uint32_t self_kstack;
-  enum task_status status;
-  int priority;
+  uint32_t self_kstack; /* Each thread has its own kernel stack */
   char name[16];
-  uint32_t stack_magic;
+  enum task_status status;
+
+  int priority;
+  int ticks; /* Ticks running on CPU each time */
+  uint32_t elapsed_ticks; /* Total ticks running on CPU */
+
+  struct list_elem general_tag; /* Tag in ready thread list */
+  struct list_elem all_list_tag; /* Tag in all thread list */
+
+  uint32_t* pgdir; /* Virtual address of thread's page directory */
+
+  uint32_t stack_magic; /* Stack boundary */
 };
 
 struct task_struct* thread_start(char* name,
                                  int prio,
                                  thread_func function,
                                  void* func_arg);
+
+void schedule();
 #endif
