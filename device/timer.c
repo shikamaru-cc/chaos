@@ -1,5 +1,6 @@
 #include "stdint.h"
 #include "timer.h"
+#include "thread.h"
 #include "kernel/io.h"
 #include "kernel/print.h"
 
@@ -11,6 +12,23 @@
 #define COUNTER0_NO       0
 #define COUNTER_MODE      2
 #define READ_WRITE_LATCH  3
+
+uint32_t ticks; /* CPU total ticks since boot */
+
+static void intr_timer_handler(void) {
+  struct task_struct* cur_thread = running_thread();
+  /* Check kernel stack overflow */
+  ASSERT(cur_thread->stack_magic == STACK_MAGIC);
+
+  cur_thread->elapsed_ticks++;
+  ticks++;
+
+  if (cur_thread->ticks <= 0) {
+    schedule();
+  } else {
+    cur_thread->ticks--;
+  }
+}
 
 static void timer_set_frequence(uint8_t counter_port, 
                                 uint8_t counter_no,
@@ -31,5 +49,6 @@ void timer_init() {
                       READ_WRITE_LATCH,
                       COUNTER_MODE,
                       COUNTER0_VALUE);    
+  register_handler(0x20, intr_timer_handler);
   put_str("timer init done\n");
 }
