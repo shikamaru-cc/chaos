@@ -50,7 +50,7 @@ void thread_create(struct task_struct* pthread,
   k_stack->eip = kernel_thread;
   k_stack->function = function;
   k_stack->func_arg = func_arg;
-  /* Caller saved registers */
+  /* Callee saved registers */
   k_stack->ebp = k_stack->ebx = k_stack->edi = k_stack->esi = 0;
 }
 

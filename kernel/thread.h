@@ -38,7 +38,7 @@ struct intr_stack {
 };
 
 struct thread_stack {
-  /* Caller saved registers */
+  /* Callee saved registers */
   uint32_t ebp;
   uint32_t ebx;
   uint32_t edi;
