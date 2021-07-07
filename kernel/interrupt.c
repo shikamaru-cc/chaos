@@ -137,7 +137,7 @@ void idt_init(void) {
   put_str("idt_init done\n");
 }
 
-/* ========== Utils for enabling and disabling interrupt flags ============= */
+/* ================= Utils for handling flags and handlers ================== */
 
 #define EFLAGS_IF   0x00000200
 #define GET_EFLAGS(EFLAG_VAR) asm volatile("pushfl; popl %0" : "=g"(EFLAG_VAR))
@@ -168,4 +168,10 @@ enum intr_status intr_get_status(void) {
 
 enum intr_status intr_set_status(enum intr_status status) {
   return status == INTR_ON ? intr_enable() : intr_disable();
+}
+
+/* Register interrupt function in intr_handler_table for given vector number and
+ * interrupt handler function */
+void register_handler(uint8_t vector_no, intr_handler function) {
+  intr_handler_table[vector_no] = function;
 }
