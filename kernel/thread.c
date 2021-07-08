@@ -5,9 +5,9 @@
 #include "memory.h"
 #include "interrupt.h"
 #include "kernel/list.h"
+#include "kernel/print.h"
 
 #define PG_SIZE 4096
-#define STACK_MAGIC 0x12345678
 
 struct task_struct* main_thread;
 struct list thread_ready_list;
@@ -54,10 +54,10 @@ void thread_create(struct task_struct* pthread,
   k_stack->ebp = k_stack->ebx = k_stack->edi = k_stack->esi = 0;
 }
 
-/* thread_init
- * Init the process control block.
+/* task_init
+ * Init the task process control block.
  */
-void thread_init(struct task_struct* pthread, char* name, int prio) {
+void task_init(struct task_struct* pthread, char* name, int prio) {
   memset(pthread, 0, sizeof(*pthread));
   if (pthread == main_thread) {
     pthread->status = TASK_RUNNING;
@@ -75,7 +75,7 @@ void thread_init(struct task_struct* pthread, char* name, int prio) {
 }
 
 /* thread_start
- * Call thread_init and thread_create to setup thread PCB and kernel stack, then
+ * Call task_init and thread_create to setup thread PCB and kernel stack, then
  * add thread PCB to thread_ready_list and thread_all_list.
  */
 struct task_struct* thread_start(char* name,
@@ -84,7 +84,7 @@ struct task_struct* thread_start(char* name,
                                  void* func_arg) {
   struct task_struct* thread = get_kernel_pages(1);
 
-  thread_init(thread, name, prio);
+  task_init(thread, name, prio);
   thread_create(thread, function, func_arg);
 
   /* Add to ready thread list */
@@ -100,10 +100,18 @@ struct task_struct* thread_start(char* name,
 
 static void make_main_thread(void) {
   main_thread = running_thread();
-  thread_init(main_thread, "main", 31);
+  task_init(main_thread, "main", 31);
 
   ASSERT(!elem_find(&thread_all_list, &main_thread->all_list_tag));
   list_append(&thread_all_list, &main_thread->all_list_tag);
+}
+
+void thread_init(void) {
+  put_str("thread_init start\n");
+  list_init(&thread_ready_list);
+  list_init(&thread_all_list);
+  make_main_thread();
+  put_str("thread_init done\n");
 }
 
 /* schedule

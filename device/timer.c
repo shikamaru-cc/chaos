@@ -1,3 +1,4 @@
+#include "debug.h"
 #include "stdint.h"
 #include "timer.h"
 #include "thread.h"

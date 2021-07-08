@@ -1,6 +1,9 @@
 #ifndef __THREAD_H
 #define __THREAD_H
 #include "stdint.h"
+#include "kernel/list.h"
+
+#define STACK_MAGIC 0x12345678
 
 typedef void thread_func(void*);
 
@@ -69,10 +72,13 @@ struct task_struct {
   uint32_t stack_magic; /* Stack boundary */
 };
 
-struct task_struct* thread_start(char* name,
-                                 int prio,
-                                 thread_func function,
-                                 void* func_arg);
+struct task_struct* thread_start(
+  char* name,
+  int prio,
+  thread_func function,
+  void* func_arg
+  );
 
-void schedule();
+void thread_init(void);
+void schedule(void);
 #endif

@@ -3,7 +3,7 @@
 #include "stdbool.h"
 #include "string.h"
 
-void list_init(struct list*) {
+void list_init(struct list* list) {
   list->head.next = &list->tail;
   list->head.prev = NULL;
   list->tail.prev = &list->head;
@@ -29,7 +29,7 @@ void list_iterate(struct list* plist) {
   
 }
 
-void list_append(struct list_* plist, struct list_elem* elem) {
+void list_append(struct list* plist, struct list_elem* elem) {
   list_insert_before(&plist->tail, elem);
 }
 
@@ -42,7 +42,7 @@ void list_remove(struct list_elem* elem) {
   intr_set_status(old_status);
 }
 
-struct list_elem* list_pop(struct list_elem* plist) {
+struct list_elem* list_pop(struct list* plist) {
   struct list_elem* pelem = plist->head.next;
   list_remove(pelem);
   return pelem;
@@ -55,7 +55,7 @@ uint32_t list_len(struct list* plist) {
     i++;
     elem = elem->next;
   }
-  return i
+  return i;
 }
 
 struct list_elem* list_tranversal(struct list* plist, function func, int arg) {
@@ -80,6 +80,6 @@ bool elem_find(struct list* plist, struct list_elem* obj_elem) {
   return false;
 }
 
-bool list_empty(struct list_elem* plist) {
+bool list_empty(struct list* plist) {
   return (plist->head.next == &plist->tail) ? true : false;
 }

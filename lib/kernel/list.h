@@ -1,6 +1,7 @@
 #ifndef __KERNEL_LIST_H
 #define __KERNEL_LIST_H
 #include "stdint.h"
+#include "stdbool.h"
 
 /* offset of a member in struct type */
 #define offset(struct_type, member) ((int)(&((struct_type*)0)->member))
@@ -25,7 +26,7 @@ void list_insert_before(struct list_elem* before, struct list_elem* elem);
 void list_push(struct list* plist, struct list_elem* elem);
 void list_append(struct list* plist, struct list_elem* elem);
 void list_remove(struct list_elem* elem);
-struct list_elem* list_pop(struct list_elem* plist);
+struct list_elem* list_pop(struct list* plist);
 uint32_t list_len(struct list* plist);
 struct list_elem* list_tranversal(struct list* plist, function func, int arg);
 bool elem_find(struct list* plist, struct list_elem* obj_elem);

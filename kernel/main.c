@@ -3,23 +3,27 @@
 #include "string.h"
 #include "interrupt.h"
 #include "memory.h"
+#include "thread.h"
 #include "kernel/print.h"
 
-void main_thread(void* arg) {
-  put_str((char*)arg);
-  while(1);
+void k_thread(void* arg) {
+  char* para = arg;
+  while (1) {
+    put_str(para);
+  }
 }
 
 int main(void) {
   put_str("\nWelcome to Chaos ..\n");
   init_all();
-  intr_set_status(INTR_OFF);
+  thread_start("thread 1", 31, k_thread, "foo\n");
+  thread_start("thread 2", 8, k_thread, "bar\n");
 
-  void* addr = get_kernel_pages(3);
-  put_str("\n get_kernel_page start vaddr : ");
-  put_int((uint32_t)addr);  
-  put_str("\n");
+  intr_enable();
 
-  struct task_status* thread = thread_start("hello", 1, main_thread, "world");  
+  while(1) {
+    put_str("Main\n");
+  }
+
   return 0;
 }
