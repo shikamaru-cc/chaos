@@ -109,10 +109,18 @@ bochs_url='https://jaist.dl.sourceforge.net/project/bochs/bochs/2.6.11/bochs-2.6
 if [ ! -f bochs.mk ]; then
   curl -O $bochs_url
   tar -xvf bochs-2.6.11.tar.gz
-  mv bochs-2.6.11 bochs
-  pushd bochs
+  mkdir bochs
+  pushd bochs-2.6.11
+  # build bochs-gdb and bochs independtly, since --enable-gdb-stub and
+  # --enable-debugger is mutually exclusive
   ./configure --enable-gdb-stub
   make
+  cp bochs ../bochs/bochs-gdb
+  cp bximage ../bochs/bximage
+  make clean
+  ./configure --enable-debugger
+  make
+  cp bochs ../bochs/
   popd
   touch bochs.mk
 fi

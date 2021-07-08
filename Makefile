@@ -54,9 +54,10 @@ boot/%.bin: boot/%.asm
 kernel/kernel.bin: $(OBJS)
 	$(LD) $(LDFLAGS) $^ -o $@
 
+BXIMAGE=build/bochs/bximage
 WORKSPACE/disk.img:
 	mkdir WORKSPACE
-	bximage -mode=create -hd=10M -q ./WORKSPACE/disk.img
+	$(BXIMAGE) -mode=create -hd=10M -q ./WORKSPACE/disk.img
 
 .PHONY: build
 build build-debug: build/init.mk $(BINS) WORKSPACE/disk.img
@@ -72,13 +73,14 @@ build build-debug: build/init.mk $(BINS) WORKSPACE/disk.img
 	objdump -D kernel/kernel.bin > kernel/kernel.d
 
 BOCHS = build/bochs/bochs
+BOCHS_GDB = build/bochs/bochs-gdb
 .PHONY: bochs
 # TODO: build/bochs/bochs has some bug in set breakpoints
 # change to another version
 bochs: build
-	bochs -q -f tools/bochsrc
+	$(BOCHS) -q -f tools/bochsrc
 bochs-gdb: build
-	$(BOCHS) -q -f tools/gdb-bochsrc
+	$(BOCHS_GDB) -q -f tools/gdb-bochsrc
 
 .PHONY: clean
 clean:
