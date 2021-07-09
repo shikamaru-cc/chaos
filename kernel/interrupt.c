@@ -50,6 +50,7 @@ static void general_intr_handler(uint8_t intr_n) {
   put_str(" : ");
   put_str(intr_name[intr_n]);
   put_char('\n');
+  while(1){}
 }
 
 /* =========================== Init IDT and PIC ============================= */

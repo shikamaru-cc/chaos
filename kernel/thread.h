@@ -80,5 +80,7 @@ struct task_struct* thread_start(
   );
 
 void thread_init(void);
+void thread_block(enum task_status);
+void thread_unblock(struct task_struct*);
 void schedule(void);
 #endif

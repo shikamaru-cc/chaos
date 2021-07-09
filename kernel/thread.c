@@ -41,8 +41,6 @@ static void kernel_thread(thread_func* function, void* func_arg) {
 void thread_create(struct task_struct* pthread,
                    thread_func function,
                    void* func_arg) {
-  /* interrupt stack space */
-  pthread->self_kstack -= sizeof(struct intr_stack);
   /* thread stack space */
   pthread->self_kstack -= sizeof(struct thread_stack);
 
@@ -96,6 +94,43 @@ struct task_struct* thread_start(char* name,
   list_append(&thread_all_list, &thread->all_list_tag);
 
   return thread;
+}
+
+/* thread_block
+ * This function is called by current thread to block itself, set its status as
+ * stat.
+ */
+void thread_block(enum task_status stat) {
+  ASSERT((stat == TASK_BLOCKED) ||
+         (stat == TASK_WAITING) ||
+         (stat == TASK_HANGING));
+
+  enum intr_status old_status = intr_disable();
+  struct task_struct* cur_thread = running_thread();
+  cur_thread->status = stat;
+  schedule();
+  inter_set_status(old_status);
+}
+
+/* thread_unblock
+ * Wake up a blocked thread for given PCB ptr.
+ */
+void thread_unblock(struct task_struct* pthread) {
+  enum intr_status old_status = intr_disable();
+  ASSERT((pthread->status == TASK_BLOCKED) ||
+         (pthread->status == TASK_WAITING) ||
+         (pthread->status == TASK_HANGING));
+
+  ASSERT(!elem_find(&thread_ready_list, &pthread->general_tag));
+
+  if (elem_find(&thread_ready_list, &pthread->general_tag)) {
+    PANIC("thread_unblock: blocked thread in ready_list");
+  }
+
+  list_push(&thread_ready_list, &pthread->general_tag);
+  pthread->status = TASK_READY;
+
+  intr_set_status(old_status);
 }
 
 static void make_main_thread(void) {
