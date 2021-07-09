@@ -1,6 +1,7 @@
 #include "debug.h"
 #include "thread.h"
 #include "stdint.h"
+#include "stdnull.h"
 #include "string.h"
 #include "memory.h"
 #include "interrupt.h"
@@ -109,7 +110,7 @@ void thread_block(enum task_status stat) {
   struct task_struct* cur_thread = running_thread();
   cur_thread->status = stat;
   schedule();
-  inter_set_status(old_status);
+  intr_set_status(old_status);
 }
 
 /* thread_unblock
@@ -162,8 +163,10 @@ void schedule() {
     ASSERT(!elem_find(&thread_ready_list, &cur->general_tag));
     list_append(&thread_ready_list, &cur->general_tag);
     cur->status = TASK_READY;
+    /* reset ticks */
+    cur->ticks = cur->priority;
   } else {
-
+    /* Thread is blocked, do nothing */
   }
 
   ASSERT(!list_empty(&thread_ready_list));

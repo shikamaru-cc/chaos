@@ -79,6 +79,7 @@ struct task_struct* thread_start(
   void* func_arg
   );
 
+struct task_struct* running_thread(void);
 void thread_init(void);
 void thread_block(enum task_status);
 void thread_unblock(struct task_struct*);
