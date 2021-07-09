@@ -1,3 +1,4 @@
+#include "console.h"
 #include "init.h"
 #include "timer.h"
 #include "interrupt.h"
@@ -8,7 +9,8 @@
 void init_all() {
   put_str("chaos init ..\n");  
   idt_init();
-  timer_init();
   mem_init();
   thread_init();
+  timer_init();
+  console_init();
 }

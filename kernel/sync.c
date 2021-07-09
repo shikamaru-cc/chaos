@@ -7,7 +7,7 @@
 #include "kernel/list.h"
 
 void sem_init(sem_t* sem, uint8_t value) {
-  psem->value = value;
+  sem->value = value;
   list_init(&sem->waiters);
 }
 

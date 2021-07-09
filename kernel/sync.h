@@ -16,4 +16,7 @@ typedef struct {
   uint32_t holder_repeat_nr;
 } lock_t;
 
+void lock_init(lock_t* lock);
+void lock_acquire(lock_t* lock);
+void lock_release(lock_t* lock);
 #endif
