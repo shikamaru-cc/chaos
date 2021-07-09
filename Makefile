@@ -56,7 +56,7 @@ kernel/kernel.bin: $(OBJS)
 
 BXIMAGE=build/bochs/bximage
 WORKSPACE/disk.img:
-	mkdir WORKSPACE
+	mkdir -p WORKSPACE
 	$(BXIMAGE) -mode=create -hd=10M -q ./WORKSPACE/disk.img
 
 .PHONY: build
