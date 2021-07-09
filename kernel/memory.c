@@ -1,6 +1,7 @@
 #include "debug.h"
 #include "memory.h"
 #include "stdint.h"
+#include "stdnull.h"
 #include "string.h"
 #include "kernel/print.h"
 
