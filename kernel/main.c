@@ -21,11 +21,12 @@ void k_thread(void* arg) {
 int main(void) {
   put_str("\nWelcome to Chaos ..\n");
   init_all();
-  thread_start("thread 1", 31, k_thread, "foo ");
-  thread_start("thread 2", 8, k_thread, "bar ");
+  // thread_start("thread 1", 31, k_thread, "foo ");
+  // thread_start("thread 2", 8, k_thread, "bar ");
 
   intr_enable();
 
+  /*
   int i = 0;
   while(1) {
     console_put_str("Main ");
@@ -33,6 +34,7 @@ int main(void) {
     console_put_char(' ');
     i++;
   }
-
+  */
+  while(1){}
   return 0;
 }

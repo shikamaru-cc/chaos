@@ -4,6 +4,7 @@
 #include "interrupt.h"
 #include "memory.h"
 #include "thread.h"
+#include "keyboard.h"
 #include "kernel/print.h"
 
 void init_all() {
@@ -13,4 +14,5 @@ void init_all() {
   thread_init();
   timer_init();
   console_init();
+  keyboard_init();
 }

@@ -18,7 +18,7 @@
 #define PIC_S_ICW3  0x02        // ICW3: connect to master IR2
 #define PIC_S_ICW4  0x01        // ICW4: 8086 mode, no auto EOI
 
-#define IDT_DESC_CNT 0x21       // num of interrupt types
+#define IDT_DESC_CNT 0x30       // num of interrupt types
 
 struct gate_desc {
   uint16_t func_offset_low_word;
@@ -119,9 +119,9 @@ static void pic_init(void) {
   outb(PIC_S_DATA, PIC_S_ICW3);
   outb(PIC_S_DATA, PIC_S_ICW4);
 
-  // Open IR0
+  // Open Keyboard intr
   // Actually we are outing data to OCW1
-  outb(PIC_M_DATA, 0xfe);
+  outb(PIC_M_DATA, 0xfd);
   outb(PIC_S_DATA, 0xff);
 
   put_str("    init pic\n");
