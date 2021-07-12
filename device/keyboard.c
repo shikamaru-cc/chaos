@@ -1,4 +1,5 @@
 #include "keyboard.h"
+#include "ioqueue.h"
 #include "kernel/print.h"
 #include "kernel/io.h"
 #include "interrupt.h"
@@ -40,6 +41,9 @@
 #define CTRL_R_BREAK    0xe09d
 #define CAPS_LOCK_MAKE  0x3a
 #define CAPS_LOCK_BREAK 0xba
+
+/* Keyboard global buffer queue*/
+ioqueue_t kbd_buf;
 
 /* Status variable to check whether responding key is made */
 static bool ctrl_status, shift_status, alt_status;
@@ -260,20 +264,23 @@ static void intr_keyboard_handler(void) {
     return;
   }
 
-  if (ch >= 'a' && ch <= 'z') {
-    /* CAPS_LOCK is set */
-    if (caps_lock_status == true) {
+  /* CAPS_LOCK is set */
+  if (caps_lock_status == true) {
+    if (ch >= 'a' && ch <= 'z') {
       ch -= 32;
+    } else if (ch >= 'A' && ch <= 'Z') {
+      ch += 32;
     }
   }
 
-  put_char(ch);
+  ioq_putchar(&kbd_buf, ch);
 
   return;
 }
 
 void keyboard_init() {
   put_str("keyboard init start\n");
+  ioq_init(&kbd_buf);
   register_handler(0x21, intr_keyboard_handler);
   put_str("keyboard init done\n");
 }

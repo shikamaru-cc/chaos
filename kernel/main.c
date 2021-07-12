@@ -7,34 +7,30 @@
 #include "thread.h"
 #include "kernel/print.h"
 
+/* TODO: for test, remove it later */
+#include "ioqueue.h"
+#include "keyboard.h"
+
 void k_thread(void* arg) {
   char* para = arg;
-  int i = 0;
+  char ch;
   while (1) {
+    ch = ioq_getchar(&kbd_buf);
     console_put_str(para);
-    console_put_int(i);
+    console_put_char(ch);
     console_put_char(' ');
-    i++;
   }
 }
 
 int main(void) {
   put_str("\nWelcome to Chaos ..\n");
   init_all();
-  // thread_start("thread 1", 31, k_thread, "foo ");
-  // thread_start("thread 2", 8, k_thread, "bar ");
+  thread_start("thread 1", 31, k_thread, "A_");
+  thread_start("thread 2", 31, k_thread, "B_");
 
   intr_enable();
 
-  /*
-  int i = 0;
-  while(1) {
-    console_put_str("Main ");
-    console_put_int(i);
-    console_put_char(' ');
-    i++;
-  }
-  */
-  while(1){}
+  while(1);
+
   return 0;
 }
