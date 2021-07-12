@@ -1,4 +1,4 @@
-#ifndef __INIT_H
-#define __INIT_H
+#ifndef __KERNEL_INIT_H
+#define __KERNEL_INIT_H
 void init_all(void);
 #endif

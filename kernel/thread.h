@@ -1,5 +1,5 @@
-#ifndef __THREAD_H
-#define __THREAD_H
+#ifndef __KERNEL_THREAD_H
+#define __KERNEL_THREAD_H
 #include "stdint.h"
 #include "kernel/list.h"
 

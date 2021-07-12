@@ -1,5 +1,5 @@
-#ifndef __THREAD_SYNC_H
-#define __THREAD_SYNC_H
+#ifndef __KERNEL_SYNC_H
+#define __KERNEL_SYNC_H
 
 #include "stdint.h"
 #include "thread.h"

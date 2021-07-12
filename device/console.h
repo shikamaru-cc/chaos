@@ -1,5 +1,5 @@
-#ifndef __CONSOLE_H
-#define __CONSOLE_H
+#ifndef __DEVICE_CONSOLE_H
+#define __DEVICE_CONSOLE_H
 #include "stdint.h"
 void console_init(void);
 void console_put_str(char* str);
