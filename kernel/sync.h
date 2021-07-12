@@ -19,4 +19,13 @@ typedef struct {
 void lock_init(lock_t* lock);
 void lock_acquire(lock_t* lock);
 void lock_release(lock_t* lock);
+
+typedef struct {
+  lock_t* lock;
+  struct list waitq;
+} cond_t;
+
+void cond_init(cond_t* cond, lock_t* lock);
+void cond_wait(cond_t* cond);
+void cond_signal(cond_t* cond);
 #endif

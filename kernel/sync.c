@@ -6,6 +6,8 @@
 #include "interrupt.h"
 #include "kernel/list.h"
 
+/* =========================== Semaphore implement ========================== */
+
 void sem_init(sem_t* sem, uint8_t value) {
   sem->value = value;
   list_init(&sem->waiters);
@@ -43,18 +45,26 @@ void sem_wait(sem_t* sem) {
 void sem_post(sem_t* sem) {
   enum intr_status old_status = intr_disable();
 
+  struct task_struct* thread_blocked;
+
   if (!list_empty(&sem->waiters)) {
 
-    struct task_struct* thread_blocked = elem2entry(struct task_struct,
-      general_tag, list_pop(&sem->waiters)); 
+    thread_blocked = elem2entry(
+                      struct task_struct,
+                      general_tag,
+                      list_pop(&sem->waiters)
+                     );
 
     thread_unblock(thread_blocked);
+
   }
 
   sem->value++;
 
   intr_set_status(old_status);
 }
+
+/* ============================= Mutex implement ============================ */
 
 void lock_init(lock_t* lock) {
   lock->holder = NULL;
@@ -87,4 +97,34 @@ void lock_release(lock_t* lock) {
   lock->holder = NULL;
   lock->holder_repeat_nr = 0;
   sem_post(&lock->sem);
+}
+
+/* ===================== Condition variable implement ======================= */
+
+void cond_init(cond_t* cond, lock_t* lock) {
+  cond->lock = lock;
+  list_init(&cond->waitq);
+}
+
+void cond_wait(cond_t* cond) {
+  list_append(&cond->waitq, &running_thread()->general_tag);
+  lock_release(cond->lock);
+  thread_block(TASK_BLOCKED);
+  lock_acquire(cond->lock);
+}
+
+void cond_signal(cond_t* cond) {
+  struct task_struct* thread_blocked;
+
+  if (!list_empty(&cond->waitq)) {
+
+    thread_blocked = elem2entry(
+                      struct task_struct,
+                      general_tag,
+                      list_pop(&cond->waitq)
+                     );
+
+    thread_unblock(thread_blocked);
+
+  }
 }
