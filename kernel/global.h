@@ -3,7 +3,7 @@
 
 #include "stdint.h"
 
-/* ============================ GDT attribute =============================== */
+// ============================ GDT attribute =============================== //
 
 #define DESC_G_4K   1
 #define DESC_D_32   1
@@ -24,7 +24,7 @@
 
 #define DESC_TYPE_TSS 9 /* B bit is 0, not busy */
 
-/* ============================== GDT selector ============================== */
+// ============================== GDT selector ============================== //
 
 #define RPL0 0
 #define RPL1 1
@@ -40,7 +40,7 @@
 #define SELECTOR_K_DATA   ((2 << 3) + (TI_GDT << 2) + RPL0)
 #define SELECTOR_K_STACK  SELECTOR_K_DATA
 #define SELECTOR_K_GS     ((3 << 3) + (TI_GDT << 2) + RPL0)
-/* The 4th selector used by tss */
+// The 4th selector used by tss
 #define SELECTOR_U_CODE   ((5 << 3) + (TI_GDT << 2) + RPL3)
 #define SELECTOR_U_DATA   ((6 << 3) + (TI_GDT << 2) + RPL3)
 #define SELECTOR_U_STACK  SELECTOR_U_DATA
@@ -60,7 +60,7 @@
                                 (DESC_S_DATA << 4) + \
                                 (DESC_TYPE_DATA))
 
-/* TSS descriptor attribute */
+// TSS descriptor attribute
 #define TSS_DESC_D 0
 
 #define TSS_ATTR_HIGH ((DESC_G_4K  << 7) + \
@@ -84,7 +84,20 @@ struct gdt_desc {
   uint8_t base_high_byte;
 };
 
-/* ============================== IDT attribute ============================= */
+// ============================ Registers related =========================== //
+
+#define EFLAGS_MBS    (1 << 1)
+#define EFLAGS_IF_1   (1 << 9)
+#define EFLAGS_IF_0   0
+#define EFLAGS_IOPL_3 (3 << 12)
+#define EFLAGS_IOPL_0 (0 << 12)
+
+#define DIV_ROUND_UP(X, STEP) ((X + STEP - 1) / (STEP))
+
+// FIXME: PG_SIZE has been defined somewhere, remove them
+#define PG_SIZE 4096
+
+// ============================== IDT attribute ============================= //
 
 #define IDT_DESC_P    1
 #define IDT_DESC_DPL0 0
