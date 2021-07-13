@@ -1,7 +1,9 @@
 #ifndef __KERNEL_MEMORY_H
 #define __KERNEL_MEMORY_H
+
 #include "stdint.h"
 #include "kernel/bitmap.h"
+
 /* Use which pool */
 enum pool_flags {
   PF_KERNEL = 1,
@@ -16,12 +18,16 @@ enum pool_flags {
 #define PG_US_S 0
 #define PG_US_U (1 << 2)
 
-struct virtual_addr {
-  struct bitmap vaddr_bitmap;
-  uint32_t vaddr_start;
+struct va_pool {
+  struct bitmap btmp;
+  uint32_t start;
 };
 
-extern struct pool kernel_pool, user_pool;
+extern struct pa_pool k_pa_pool, u_pa_pool;
 void* get_kernel_pages(uint32_t pg_cnt);
+void* get_user_pages(uint32_t pg_cnt);
+void* get_a_page(enum pool_flags pf, uint32_t va);
+uint32_t va2pa(uint32_t va);
 void mem_init(void);
+
 #endif
