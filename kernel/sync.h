@@ -28,4 +28,5 @@ typedef struct {
 void cond_init(cond_t* cond, lock_t* lock);
 void cond_wait(cond_t* cond);
 void cond_signal(cond_t* cond);
+
 #endif

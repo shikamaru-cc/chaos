@@ -6,22 +6,21 @@
 #include "interrupt.h"
 #include "kernel/list.h"
 
-/* =========================== Semaphore implement ========================== */
+// =========================== Semaphore implement ========================== //
 
 void sem_init(sem_t* sem, uint8_t value) {
   sem->value = value;
   list_init(&sem->waiters);
 }
 
-/* sem_wait
- * The atomic P operation of semaphore. Decrete sem->value when sem->value > 0, 
- * block the thread when sem->value == 0. Disable interrupt to achieve atomic.
- */
+// sem_wait
+// The atomic P operation of semaphore. Decrete sem->value when sem->value > 0,
+// block the thread when sem->value == 0. Disable interrupt to achieve atomic.
 void sem_wait(sem_t* sem) {
   enum intr_status old_status = intr_disable();
 
-  /* If the sem->value is zero, then the thread will add itself to the
-   * sem->waiters and block itself. When the thread wakes up, check again. */
+  // If the sem->value is zero, then the thread will add itself to the
+  // sem->waiters and block itself. When the thread wakes up, check again.
   while (sem->value == 0) {
     ASSERT(!elem_find(&sem->waiters, &running_thread()->general_tag));
     if (elem_find(&sem->waiters, &running_thread()->general_tag)) {
@@ -31,17 +30,16 @@ void sem_wait(sem_t* sem) {
     thread_block(TASK_BLOCKED);
   }
 
-  /* sem->value = 1 means the running thread get the lock */
+  // sem->value = 1 means the running thread get the lock
   sem->value--;
   ASSERT(sem->value >= 0);
 
   intr_set_status(old_status);
 }
 
-/* sem_post
- * The atomic V operation of semaphore. Increte sem->value and wake up the first
- * thread in sem->waiters. Disable interrupt to achieve atomic.
- */
+// sem_post
+// The atomic V operation of semaphore. Increte sem->value and wake up the first
+// thread in sem->waiters. Disable interrupt to achieve atomic.
 void sem_post(sem_t* sem) {
   enum intr_status old_status = intr_disable();
 
@@ -49,11 +47,8 @@ void sem_post(sem_t* sem) {
 
   if (!list_empty(&sem->waiters)) {
 
-    thread_blocked = elem2entry(
-                      struct task_struct,
-                      general_tag,
-                      list_pop(&sem->waiters)
-                     );
+    thread_blocked = \
+      elem2entry(struct task_struct, general_tag, list_pop(&sem->waiters));
 
     thread_unblock(thread_blocked);
 
@@ -64,7 +59,7 @@ void sem_post(sem_t* sem) {
   intr_set_status(old_status);
 }
 
-/* ============================= Mutex implement ============================ */
+// ============================= Mutex implement ============================ //
 
 void lock_init(lock_t* lock) {
   lock->holder = NULL;
@@ -99,7 +94,7 @@ void lock_release(lock_t* lock) {
   sem_post(&lock->sem);
 }
 
-/* ===================== Condition variable implement ======================= */
+// ===================== Condition variable implement ======================= //
 
 void cond_init(cond_t* cond, lock_t* lock) {
   cond->lock = lock;
@@ -118,11 +113,8 @@ void cond_signal(cond_t* cond) {
 
   if (!list_empty(&cond->waitq)) {
 
-    thread_blocked = elem2entry(
-                      struct task_struct,
-                      general_tag,
-                      list_pop(&cond->waitq)
-                     );
+    thread_blocked = \
+      elem2entry(struct task_struct, general_tag, list_pop(&cond->waitq));
 
     thread_unblock(thread_blocked);
 
