@@ -3,12 +3,22 @@ BINS = boot/mbr.bin boot/loader.bin kernel/kernel.bin
 
 LIB_OBJS = $(subst .asm,.o,$(wildcard lib/*.asm)) \
            $(subst .c,.o,$(wildcard lib/*.c))
+
+LIB_U_OBJS = $(subst .asm,.o,$(wildcard lib/user/*.asm)) \
+             $(subst .c,.o,$(wildcard lib/user/*.c))
+
 LIB_K_OBJS = $(subst .asm,.o,$(wildcard lib/kernel/*.asm)) \
              $(subst .c,.o,$(wildcard lib/kernel/*.c))
+
 D_OBJS = $(subst .c,.o,$(wildcard device/*.c))
+
+U_OBJS = $(subst .c,.o,$(wildcard user/*.c))
+
 K_OBJS = $(subst .c,.o,$(wildcard kernel/*.c)) \
          $(subst .asm,.o,$(wildcard kernel/*.asm))
+
 OBJS = $(K_OBJS) \
+       $(U_OBJS) \
        $(D_OBJS) \
        $(LIB_OBJS) \
        $(LIB_K_OBJS)
@@ -16,7 +26,7 @@ OBJS = $(K_OBJS) \
 AS = nasm
 CC = build/i386-elf-gcc/bin/i386-elf-gcc
 LD = build/i386-elf-gcc/bin/i386-elf-ld
-LIB = -I lib/ -I kernel/ -I device/
+LIB = -I lib/ -I kernel/ -I device/ -I user/
 ASFLAGS = -f elf
 
 DEBUG = 0
@@ -75,8 +85,6 @@ build build-debug: build/init.mk $(BINS) WORKSPACE/disk.img
 BOCHS = build/bochs/bochs
 BOCHS_GDB = build/bochs/bochs-gdb
 .PHONY: bochs
-# TODO: build/bochs/bochs has some bug in set breakpoints
-# change to another version
 bochs: build
 	$(BOCHS) -q -f tools/bochsrc
 bochs-gdb: build
@@ -87,6 +95,7 @@ clean:
 	rm -rf WORKSPACE
 	cd boot && rm -f *.bin
 	cd kernel && rm -f *.bin *.o *.d
+	cd user && rm -f *.o
 	cd device && rm -f *.o
 	cd lib && rm -f *.o
 	cd lib/kernel && rm -f *.o

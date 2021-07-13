@@ -1,8 +1,10 @@
 #ifndef __KERNEL_THREAD_H
 #define __KERNEL_THREAD_H
+
 #include "stdint.h"
 #include "kernel/list.h"
 
+#define PG_SIZE 4096
 #define STACK_MAGIC 0x12345678
 
 typedef void thread_func(void*);
