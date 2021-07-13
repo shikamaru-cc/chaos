@@ -1,6 +1,9 @@
+#include "debug.h"
 #include "process.h"
 #include "memory.h"
 #include "thread.h"
+#include "stdint.h"
+#include "stdnull.h"
 #include "global.h"
 
 extern void intr_exit(void);
@@ -37,4 +40,14 @@ void process_start(void* filename_) {
     : "g" (proc_stack)
     : "memory"
   );
+}
+
+void page_dir_activate(struct task_struct* pthread) {
+  uint32_t pgdir_pa = 0x100000;
+
+  if (pthread->pgdir_pa != NULL) {
+    pgdir_pa = va2pa((uint32_t)pthread->pgdir);
+  }
+
+  asm volatile ("movl %0, %%cr3" : : "r" (pgdir_pa) : "memory");
 }

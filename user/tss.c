@@ -35,10 +35,10 @@ struct tss {
   uint32_t  io_base;
 };
 
-/* All process share a single TSS */
+// All process share a single TSS
 static struct tss tss;
 
-/* Update current esp0 in tss */
+// Update current esp0 in tss
 void update_tss_esp(struct task_struct* pthread) {
   tss.esp0 = (uint32_t*)((uint32_t)pthread + PG_SIZE);
 }
@@ -69,21 +69,21 @@ void tss_init() {
   tss.ss0 = SELECTOR_K_STACK;
   tss.io_base = tss_size;
 
-  /* Make GDT for tss, user code, user data segment */
+  // Make GDT for tss, user code, user data segment
 
-  /* Index 4: tss segment */
+  // Index 4: tss segment
   *((struct gdt_desc*)(GDT_BASE_ADDR + 4 * 8)) = \
     make_gdt_desc((uint32_t*)&tss, tss_size - 1, TSS_ATTR_LOW, TSS_ATTR_HIGH);
 
-  /* Index 5: user code segment */
+  // Index 5: user code segment
   *((struct gdt_desc*)(GDT_BASE_ADDR + 5 * 8)) = \
     make_gdt_desc((uint32_t*)0, 0xfffff, GDT_CODE_ATTR_LOW_DPL3, GDT_ATTR_HIGH);
 
-  /* Index 6: user data segment */
+  // Index 6: user data segment
   *((struct gdt_desc*)(GDT_BASE_ADDR + 6 * 8)) = \
     make_gdt_desc((uint32_t*)0, 0xfffff, GDT_DATA_ATTR_LOW_DPL3, GDT_ATTR_HIGH);
 
-  /* Now we have 7 global descriptor, reload gdt */
+  // Now we have 7 global descriptor, reload gdt
   uint64_t gdt_operand = ((8 * 7 - 1) | ((uint64_t)GDT_BASE_ADDR << 16));
 
   asm volatile ("lgdt %0" : : "m" (gdt_operand));
