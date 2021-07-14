@@ -38,6 +38,8 @@ static void kernel_thread(thread_func* function, void* func_arg) {
 void thread_create(struct task_struct* pthread,
                    thread_func function,
                    void* func_arg) {
+  // interrupt stack space
+  pthread->self_kstack -= sizeof(struct intr_stack);
   // thread stack space
   pthread->self_kstack -= sizeof(struct thread_stack);
 

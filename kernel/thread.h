@@ -77,6 +77,18 @@ struct task_struct {
   uint32_t stack_magic; // Stack boundary
 };
 
+// FIXME: user/process.c access these two lists, but it should not.
+extern struct list thread_ready_list;
+extern struct list thread_all_list;
+
+void task_init(struct task_struct* pthread, char* name, int prio);
+
+void thread_create(
+  struct task_struct* pthread,
+  thread_func function,
+  void* func_arg
+);
+
 struct task_struct* thread_start(
   char* name,
   int prio,

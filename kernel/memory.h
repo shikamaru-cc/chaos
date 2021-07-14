@@ -4,13 +4,12 @@
 #include "stdint.h"
 #include "kernel/bitmap.h"
 
-/* Use which pool */
 enum pool_flags {
   PF_KERNEL = 1,
   PF_USER = 2
 };
 
-/* PDE and PTE macros */
+// PDE and PTE macros
 #define PG_P_0  0
 #define PG_P_1  1
 #define PG_RW_R 0

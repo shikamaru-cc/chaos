@@ -15,6 +15,9 @@
 // bitmap) / 1024 = 512 MB memory.
 #define MEM_BITMAP_BASE 0xc009a000
 
+// Kernel base address
+#define K_BASE_ADDR 0xc0000000
+
 // Kernel heap start address, skip the first 1MB
 #define K_HEAP_START 0xc0100000
 
