@@ -174,6 +174,6 @@ void schedule() {
     elem2entry(struct task_struct, general_tag, thread_tag);
 
   next->status = TASK_RUNNING;
-  // process_activate(next);
+  process_activate(next);
   switch_to(cur, next);
 }

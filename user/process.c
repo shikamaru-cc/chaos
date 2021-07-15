@@ -90,6 +90,11 @@ uint32_t* create_page_dir(void) {
   uint32_t size = PG_SIZE - k_base_offset;
   memcpy(dst, src, size);
 
+  // copy kernel pde[0] to map 0~1MB directly
+  dst = (uint32_t*)((uint32_t)pgdir_va);
+  src = (uint32_t*)(0xfffff000);
+  memcpy(dst, src, 4);
+
   // update physical address for directory page itself
   uint32_t pgdir_pa = va2pa((uint32_t)pgdir_va);
   pgdir_va[1023] = (pgdir_pa | PG_US_U | PG_RW_W | PG_P_1);

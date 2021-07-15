@@ -47,13 +47,6 @@ intr_exit:
   add esp, 4                        ; skip error code
   iretd
 
-;; FIXME: test only
-global u_proc_a
-u_proc_a:
-  mov eax, 10
-  mov ebx, 10
-  jmp $
-
 VECTOR 0x00, ZERO
 VECTOR 0x01, ZERO
 VECTOR 0x02, ZERO
