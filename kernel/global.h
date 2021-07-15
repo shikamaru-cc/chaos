@@ -8,7 +8,7 @@
 #define DESC_G_4K   1
 #define DESC_D_32   1
 #define DESC_L      0
-#define DESC_AVL    1
+#define DESC_AVL    0
 #define DESC_P      1
 #define DESC_DPL_0  0
 #define DESC_DPL_1  1

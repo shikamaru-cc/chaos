@@ -5,6 +5,7 @@
 #include "string.h"
 #include "memory.h"
 #include "interrupt.h"
+#include "process.h"
 #include "kernel/list.h"
 #include "kernel/print.h"
 
@@ -173,5 +174,6 @@ void schedule() {
     elem2entry(struct task_struct, general_tag, thread_tag);
 
   next->status = TASK_RUNNING;
+  // process_activate(next);
   switch_to(cur, next);
 }

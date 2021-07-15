@@ -16,6 +16,8 @@ extern void intr_exit(void);
 
 // Set up intr_stack for new created process
 void process_start(void* filename_) {
+  intr_disable();
+
   void* function = filename_;
   struct task_struct* cur = running_thread();
 
@@ -59,7 +61,7 @@ void process_start(void* filename_) {
 void page_dir_activate(struct task_struct* pthread) {
   uint32_t pgdir_pa = KERNEL_PGDIR_VA;
 
-  if (pthread->pgdir_pa != NULL) {
+  if (pthread->pgdir != NULL) {
     pgdir_pa = va2pa((uint32_t)pthread->pgdir);
   }
 
@@ -76,7 +78,7 @@ void process_activate(struct task_struct* pthread) {
 }
 
 uint32_t* create_page_dir(void) {
-  uint32_t* pgdir_va = get_kernel_page(1);
+  uint32_t* pgdir_va = get_kernel_pages(1);
   if (pgdir_va == NULL) {
     return NULL;
   }
@@ -96,10 +98,10 @@ uint32_t* create_page_dir(void) {
 }
 
 void create_user_va_bitmap(struct task_struct* proc) {
-  uint32_t bitmap_bytes_len = (K_BASE_ADDR - USER_ADDR_START) / PG_SIZE / 8;
+  uint32_t bitmap_bytes_len = (K_BASE_ADDR - USER_VADDR_START) / PG_SIZE / 8;
   uint32_t bitmap_pg_cnt = DIV_ROUND_UP(bitmap_bytes_len, PG_SIZE);
 
-  proc->u_va_pool.start = USER_ADDR_START; 
+  proc->u_va_pool.start = USER_VADDR_START; 
   proc->u_va_pool.btmp.btmp_bytes_len = bitmap_bytes_len;
   proc->u_va_pool.btmp.bits = get_kernel_pages(bitmap_pg_cnt);
 

@@ -4,6 +4,13 @@
 #include "stdint.h"
 #include "kernel/bitmap.h"
 
+// Kernel base address
+#define K_BASE_ADDR 0xc0000000
+
+// Macros to find PDE and PTE index for a given address
+#define PDE_IDX(addr) (addr >> 22)
+#define PTE_IDX(addr) ((addr << 10) >> 22)
+
 enum pool_flags {
   PF_KERNEL = 1,
   PF_USER = 2

@@ -15,18 +15,11 @@
 // bitmap) / 1024 = 512 MB memory.
 #define MEM_BITMAP_BASE 0xc009a000
 
-// Kernel base address
-#define K_BASE_ADDR 0xc0000000
-
 // Kernel heap start address, skip the first 1MB
 #define K_HEAP_START 0xc0100000
 
 // The address storing total memory size, defined in boot/loader.asm
 #define MEMORY_TOTAL_BYTES_ADDR 0xa00
-
-// Macros to find PDE and PTE index for a given address
-#define PDE_IDX(addr) (addr >> 22)
-#define PTE_IDX(addr) ((addr << 10) >> 22)
 
 struct pa_pool {
   lock_t lock;
@@ -124,7 +117,9 @@ static void page_table_add(void* _vaddr, void* _page_phyaddr) {
   if (!(*pde & PG_P_1)) {
     uint32_t* pde_phyaddr = palloc(&k_pa_pool);
     *pde = ((uint32_t)pde_phyaddr | PG_P_1 | PG_RW_W | PG_US_U);
-  // Clean the new page table
+    // FIXME: debug
+    put_int(va2pa(pte));
+    // Clean the new page table
     memset((void*)((int)pte & 0xfffff000), 0, PG_SIZE);
   }
 
@@ -200,9 +195,9 @@ void* get_a_page(enum pool_flags pf, uint32_t va) {
   lock_acquire(&pa_pool->lock);
 
   // set va_pool bitmap
-  int32_t bit_idx = (va - pa_pool->start) / PG_SIZE;
+  int32_t bit_idx = (va - va_pool->start) / PG_SIZE;
   ASSERT(bit_idx > 0);
-  bitmap_set(&pa_pool->btmp, bit_idx);
+  bitmap_set(&va_pool->btmp, bit_idx);
 
   // alloc physical page
   void* pa = palloc(pa_pool);
@@ -213,6 +208,8 @@ void* get_a_page(enum pool_flags pf, uint32_t va) {
   page_table_add((void*)va, pa);
 
   lock_release(&pa_pool->lock);
+
+  return (void*)va;
 }
 
 // get physical address for given virtual address
