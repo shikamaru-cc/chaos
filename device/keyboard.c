@@ -9,14 +9,14 @@
 
 #define KBD_BUF_PORT 0x60
 
-/* Control Character */
+// Control Character
 #define ESC       '\033'
 #define TAB       '\t'
 #define ENTER     '\r'
 #define DELETE    '\177'
 #define BACKSPACE '\b'
 
-/* Invisible Control Character */
+// Invisible Control Character
 #define INVISIBLE_CHAR 0
 #define CTRL_L      INVISIBLE_CHAR
 #define CTRL_R      INVISIBLE_CHAR
@@ -26,7 +26,7 @@
 #define ALT_R       INVISIBLE_CHAR
 #define CAPS_LOCK   INVISIBLE_CHAR
       
-/* Macros for makecode and breakcode of control character */
+// Macros for makecode and breakcode of control character
 #define SHIFT_L_MAKE    0x2a
 #define SHIFT_L_BREAK   0xaa
 #define SHIFT_R_MAKE    0x36
@@ -42,18 +42,18 @@
 #define CAPS_LOCK_MAKE  0x3a
 #define CAPS_LOCK_BREAK 0xba
 
-/* Keyboard global buffer queue*/
+// Keyboard global buffer queue*/
 ioqueue_t kbd_buf;
 
-/* Status variable to check whether responding key is made */
+// Status variable to check whether responding key is made
 static bool ctrl_status, shift_status, alt_status;
 static bool caps_lock_status;
-static bool caps_lock_hold; /* Is caps lock holded? */
+static bool caps_lock_hold; // Is caps lock holded?
 
-/* Does scancode begin with 0xe0? */
+// Does scancode begin with 0xe0?
 static bool ext_status;
 
-/* keymap for scancode -> ascii */
+// keymap for scancode -> ascii
 static char keymap[] = {
 /* 0x00 */  '0',
 /* 0x01 */  ESC,
@@ -186,18 +186,18 @@ static void intr_keyboard_handler(void) {
     return;
   }
 
-  /* Make ext scancode */
+  // Make ext scancode
   uint16_t ext_scancode = (uint16_t)scancode;
 
-  /* ext_status is set, deal with ext code */
+  // ext_status is set, deal with ext code
   if (ext_status == true) {
     ext_scancode |= 0xe000;
     ext_status = false;
   }
 
-  /* Handle control scancode */
+  // Handle control scancode
   switch (ext_scancode) {
-  /* SHIFT */
+  // SHIFT
   case SHIFT_L_MAKE:
   case SHIFT_R_MAKE:
     shift_status = true;
@@ -207,7 +207,7 @@ static void intr_keyboard_handler(void) {
     shift_status = false;
     break;
 
-  /* ALT */
+  // ALT
   case ALT_L_MAKE:
   case ALT_R_MAKE:
     alt_status = true;
@@ -217,7 +217,7 @@ static void intr_keyboard_handler(void) {
     alt_status = false;
     break;
 
-  /* CTRL */
+  // CTRL
   case CTRL_L_MAKE:
   case CTRL_R_MAKE:
     ctrl_status = true;
@@ -227,12 +227,11 @@ static void intr_keyboard_handler(void) {
     ctrl_status = false;
     break;
 
-  /* CAPS_LOCK 
-   * If the caps_lock_hold is false, the CAPS_LOCK key is not pressed. When we
-   * first press it, caps_lock_hold is false, change the caps_lock_status and
-   * set caps_lock_hold to true, then the caps_lock_status would not be changed
-   * by the consequent sent CAPS_LOCK_MAKE until we receive CAPS_LOCK_BREAK.
-   */
+  // CAPS_LOCK
+  // If the caps_lock_hold is false, the CAPS_LOCK key is not pressed. When we
+  // first press it, caps_lock_hold is false, change the caps_lock_status and
+  // set caps_lock_hold to true, then the caps_lock_status would not be changed
+  // by the consequent sent CAPS_LOCK_MAKE until we receive CAPS_LOCK_BREAK.
   case CAPS_LOCK_MAKE:
     if (!caps_lock_hold) {
       caps_lock_status = !caps_lock_status;
@@ -244,9 +243,9 @@ static void intr_keyboard_handler(void) {
     break;
   }
 
-  /* Transfer scancode to ASCII */
+  // Transfer scancode to ASCII
   if (ext_scancode > 0x3a) {
-    /* Our keymap only handle scancode <= 0x3a now */
+    // Our keymap only handle scancode <= 0x3a now
     return;
   }
 
@@ -264,7 +263,7 @@ static void intr_keyboard_handler(void) {
     return;
   }
 
-  /* CAPS_LOCK is set */
+  // CAPS_LOCK is set
   if (caps_lock_status == true) {
     if (ch >= 'a' && ch <= 'z') {
       ch -= 32;
