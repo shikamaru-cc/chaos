@@ -1,5 +1,6 @@
 #include "debug.h"
 #include "thread.h"
+#include "sync.h"
 #include "stdint.h"
 #include "stdnull.h"
 #include "string.h"
@@ -9,12 +10,64 @@
 #include "kernel/list.h"
 #include "kernel/print.h"
 
+// --
+// global variable
+// --
+
 struct task_struct* main_thread;
+
 struct list thread_ready_list;
+
 struct list thread_all_list;
+
 static struct list_elem* thread_tag;
 
+lock_t pid_lock;
+
+// --
+// extern definition
+// --
+
 extern void switch_to(struct task_struct* cur, struct task_struct* next);
+
+// --
+// function prototype
+// --
+
+struct task_struct* running_thread();
+
+static void kernel_thread(thread_func* function, void* func_arg);
+
+void thread_create(
+  struct task_struct* pthread,
+  thread_func function,
+  void* func_arg
+);
+
+pid_t alloc_pid(void);
+
+void task_init(struct task_struct* pthread, char* name, int prio);
+
+struct task_struct* thread_start(
+  char* name,
+  int prio,
+  thread_func function,
+  void* func_arg
+);
+
+void thread_block(enum task_status stat);
+
+void thread_unblock(struct task_struct* pthread);
+
+static void make_main_thread(void);
+
+void thread_init(void);
+
+void schedule();
+
+// --
+// function implementation
+// --
 
 // running_thread
 // Get the PCB of current thread. Since each PCB is a single page, the integer
@@ -52,6 +105,15 @@ void thread_create(struct task_struct* pthread,
   k_stack->ebp = k_stack->ebx = k_stack->edi = k_stack->esi = 0;
 }
 
+
+pid_t alloc_pid(void) {
+  static pid_t next_pid = 0;
+  lock_acquire(&pid_lock);
+  next_pid++;
+  lock_release(&pid_lock);
+  return next_pid;
+}
+
 // task_init
 // Init the task process control block.
 void task_init(struct task_struct* pthread, char* name, int prio) {
@@ -63,6 +125,8 @@ void task_init(struct task_struct* pthread, char* name, int prio) {
   }
   // self_kstack is the stack top in kernel mode
   pthread->self_kstack = (uint32_t)((uint32_t)pthread + PG_SIZE);
+  // TODO: each thread has a pid now
+  pthread->pid = alloc_pid();
   strcpy(pthread->name, name);
   pthread->priority = prio;
   pthread->ticks = prio;
@@ -141,6 +205,7 @@ void thread_init(void) {
   put_str("thread_init start\n");
   list_init(&thread_ready_list);
   list_init(&thread_all_list);
+  lock_init(&pid_lock);
   make_main_thread();
   put_str("thread_init done\n");
 }
@@ -177,3 +242,4 @@ void schedule() {
   process_activate(next);
   switch_to(cur, next);
 }
+

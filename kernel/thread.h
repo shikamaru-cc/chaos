@@ -58,9 +58,12 @@ struct thread_stack {
   void* func_arg;
 };
 
+typedef int pid_t;
+
 // process control block
 struct task_struct {
   uint32_t self_kstack; // Each thread has its own kernel stack
+  pid_t pid;
   char name[16];
   enum task_status status;
 

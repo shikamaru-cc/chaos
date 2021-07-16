@@ -95,3 +95,34 @@ VECTOR 0x2C, ZERO
 VECTOR 0x2D, ZERO
 VECTOR 0x2E, ZERO
 VECTOR 0x2F, ZERO
+
+;; syscall handler
+extern syscall_table
+section .text
+__syscall_handler:
+  push 0
+
+  push ds
+  push es
+  push fs
+  push gs
+  pushad
+
+  push 0x80
+
+  ;; push args
+  push edx
+  push ecx
+  push ebx
+
+  call [syscall_table + eax * 4]
+  add esp, 12 ;; skip args
+
+  mov [esp + 8 * 4], eax ; save eax to intr_stack->eax in kernel
+
+  jmp intr_exit
+
+section .data
+global syscall_handler
+syscall_handler:
+  dd __syscall_handler

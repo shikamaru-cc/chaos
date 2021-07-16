@@ -3,6 +3,7 @@
 #include "timer.h"
 #include "interrupt.h"
 #include "memory.h"
+#include "syscall.h"
 #include "tss.h"
 #include "thread.h"
 #include "keyboard.h"
@@ -17,4 +18,5 @@ void init_all() {
   timer_init();
   console_init();
   keyboard_init();
+  syscall_init();
 }

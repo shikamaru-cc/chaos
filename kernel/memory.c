@@ -117,8 +117,6 @@ static void page_table_add(void* _vaddr, void* _page_phyaddr) {
   if (!(*pde & PG_P_1)) {
     uint32_t* pde_phyaddr = palloc(&k_pa_pool);
     *pde = ((uint32_t)pde_phyaddr | PG_P_1 | PG_RW_W | PG_US_U);
-    // FIXME: debug
-    put_int(va2pa(pte));
     // Clean the new page table
     memset((void*)((int)pte & 0xfffff000), 0, PG_SIZE);
   }

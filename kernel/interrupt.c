@@ -18,7 +18,7 @@
 #define PIC_S_ICW3  0x02        // ICW3: connect to master IR2
 #define PIC_S_ICW4  0x01        // ICW4: 8086 mode, no auto EOI
 
-#define IDT_DESC_CNT 0x30       // num of interrupt types
+#define IDT_DESC_CNT 0x81       // num of interrupt types
 
 struct gate_desc {
   uint16_t func_offset_low_word;
@@ -50,7 +50,18 @@ static void general_intr_handler(uint8_t intr_n) {
   put_str(" : ");
   put_str(intr_name[intr_n]);
   put_char('\n');
-  while(1){}
+
+  if (intr_n == 14) {
+    int32_t addr;
+    asm volatile(
+      "movl %%cr2, %%eax"
+      : "=a" (addr)
+    );
+    put_str("page fault address : ");
+    put_int(addr);
+  }
+
+  while(1);
 }
 
 // =========================== Init IDT and PIC ============================= //
@@ -96,12 +107,19 @@ static void exception_init(void) {
   intr_name[32] = "Timer interrupt";
 }
 
+extern intr_handler syscall_handler;
+
 static void idt_desc_init(void) {
   put_str("    setup interrupt descriptor table\n");
   int i;
-  for (i = 0; i < IDT_DESC_CNT; i++) {
+
+  // We only define intr_entry_table[0]~[0x2F] and syscall_handler in kernel.asm
+  for (i = 0; i < 0x30; i++) {
     make_idt_desc(&idt[i], IDT_DESC_ATTR_DPL0, intr_entry_table[i]);
   }
+
+  // for syscall interrupt handler -- int 0x80
+  make_idt_desc(&idt[0x80], IDT_DESC_ATTR_DPL3, syscall_handler);
 }
 
 // init pic 8259A
