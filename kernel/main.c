@@ -7,6 +7,7 @@
 #include "memory.h"
 #include "thread.h"
 #include "process.h"
+#include "stdio.h"
 #include "kernel/print.h"
 
 void k_thread_a(void* arg);
@@ -61,11 +62,15 @@ void k_thread_b(void* arg) {
 
 void u_proc_a(void) {
   pid_a = getpid();
+  printf("user prog a pid : %d addr : 0x%x\n", pid_a, (uint32_t)u_proc_a);
+  printf("%s, I am proc %c, 1 - 100 = %d\n", "Hello", 'a', 1-100);
   while(1);
 }
 
 void u_proc_b(void) {
   pid_b = getpid();
+  printf("user prog a pid : %d addr : 0x%x\n", pid_b, (uint32_t)u_proc_b);
+  printf("%s, I am proc %c, 3 + 256 = %d\n", "Fuck you", 'b', 3+256);
   while(1);
 }
 
