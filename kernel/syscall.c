@@ -38,12 +38,12 @@ pid_t getpid(void) {
   return (pid_t)__syscall0(SYS_GETPID);
 }
 
-int32_t sys_write(char* str) {
+uint32_t sys_write(char* str) {
   console_put_str(str);
   return strlen(str);
 }
 
-int32_t write(char* str) {
+uint32_t write(char* str) {
   return __syscall1(SYS_WRITE, str);
 }
 

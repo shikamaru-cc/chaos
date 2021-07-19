@@ -10,7 +10,7 @@ typedef enum {
 } SYSCALL_NUMBER;
 
 pid_t getpid(void);
-int32_t write(char* str);
+uint32_t write(char* str);
 
 void syscall_init(void);
 

@@ -1,6 +1,9 @@
 #ifndef __LIB_STDIO_H
 #define __LIB_STDIO_H
 
-int32_t printf(const char* format, ...);
+#include "stdint.h"
+
+uint32_t printf(const char* format, ...);
+uint32_t sprintf(char* dst, const char* format, ...);
 
 #endif

@@ -20,7 +20,9 @@ typedef char* va_list;
 
 // Export methods
 
-int32_t printf(const char* format, ...);
+uint32_t printf(const char* format, ...);
+
+uint32_t sprintf(char* des, const char* format, ...);
 
 // Non-Export methods
 
@@ -98,7 +100,7 @@ uint32_t vsprintf(char* str, const char* format, va_list ap) {
   return strlen(str);
 }
 
-int32_t printf(const char* format, ...) {
+uint32_t printf(const char* format, ...) {
   va_list args;
   va_start(args, format);
   char buf[1024] = {0};
@@ -106,3 +108,13 @@ int32_t printf(const char* format, ...) {
   va_end(args);
   return write(buf);
 }
+
+uint32_t sprintf(char* dst, const char* format, ...) {
+  uint32_t ret;
+  va_list args;
+  va_start(args, format);
+  ret = vsprintf(dst, format, args);
+  va_end(args);
+  return ret;
+}
+
