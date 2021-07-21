@@ -76,6 +76,7 @@ struct task_struct {
 
   uint32_t* pgdir; // Virtual address of thread's page directory
   struct va_pool u_va_pool; // User process's own virtual address
+  struct mem_block_desc u_block_descs[MEM_BLOCK_DESC_CNT]; // desc for malloc
 
   uint32_t stack_magic; // Stack boundary
 };

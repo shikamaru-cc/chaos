@@ -2,6 +2,7 @@
 #define __KERNEL_MEMORY_H
 
 #include "stdint.h"
+#include "kernel/list.h"
 #include "kernel/bitmap.h"
 
 // Kernel base address
@@ -35,5 +36,18 @@ void* get_user_pages(uint32_t pg_cnt);
 void* get_a_page(enum pool_flags pf, uint32_t va);
 uint32_t va2pa(uint32_t va);
 void mem_init(void);
+
+struct mem_block {
+  struct list_elem free_elem;
+};
+
+struct mem_block_desc {
+  uint32_t block_size;
+  struct list free_list;
+};
+
+#define MEM_BLOCK_DESC_CNT 7
+
+void mem_block_descs_init(struct mem_block_desc descs[MEM_BLOCK_DESC_CNT]);
 
 #endif

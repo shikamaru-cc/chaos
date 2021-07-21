@@ -32,6 +32,57 @@ struct pa_pool k_pa_pool, u_pa_pool;
 
 struct va_pool k_va_pool;
 
+static void* vaddr_get(enum pool_flags pf, uint32_t pg_cnt);
+
+uint32_t* pte_ptr(uint32_t vaddr);
+
+uint32_t* pde_ptr(uint32_t vaddr);
+
+static void* palloc(struct pa_pool* m_pool);
+
+static void page_table_add(void* _vaddr, void* _page_phyaddr);
+
+void* malloc_page(enum pool_flags pf, uint32_t pg_cnt);
+
+void* get_kernel_pages(uint32_t pg_cnt);
+
+void* get_user_pages(uint32_t pg_cnt);
+
+void* get_a_page(enum pool_flags pf, uint32_t va);
+
+uint32_t va2pa(uint32_t va);
+
+static void mem_pool_init(uint32_t all_mem);
+
+void mem_init();
+
+// --
+// -- mem block and descriptor defined in memory.h
+// --
+
+// Kernel mem block descriptors
+struct mem_block_desc k_block_descs[MEM_BLOCK_DESC_CNT];
+
+// -- Public Method
+
+void mem_block_descs_init(struct mem_block_desc descs[MEM_BLOCK_DESC_CNT]);
+
+// --
+// struct arena
+// --
+
+struct arena {
+  struct mem_block_desc* descptr;
+  uint32_t cnt;
+  bool large;
+};
+
+void* __sys_malloc(uint32_t size);
+
+// --
+// -- Implementation
+// --
+
 // Get pg_cnt continuous virtual pages, return the start va for pages for ok,
 // NULL for false
 static void* vaddr_get(enum pool_flags pf, uint32_t pg_cnt) {
@@ -300,5 +351,19 @@ void mem_init() {
   put_str(" MB\n");
 
   mem_pool_init(mem_bytes_total);
+  mem_block_descs_init(k_block_descs);
   put_str("mem_init done\n");
 }
+
+void mem_block_descs_init(struct mem_block_desc descs[MEM_BLOCK_DESC_CNT]) {
+  // minimum size is 16 bytes
+  uint32_t size = 16;
+
+  int i;
+  for (i = 0; i < MEM_BLOCK_DESC_CNT; i++) {
+    descs[i].block_size = size;
+    list_init(&descs[i].free_list);
+    size *= 2;
+  }
+}
+
