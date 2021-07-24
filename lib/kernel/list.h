@@ -3,9 +3,9 @@
 #include "stdint.h"
 #include "stdbool.h"
 
-/* offset of a member in struct type */
+// offset of a member in struct type
 #define offset(struct_type, member) ((int)(&((struct_type*)0)->member))
-/* given a member ptr in a struct, return the struct ptr */
+// given a member ptr in a struct, return the struct ptr
 #define elem2entry(struct_type, member, elem_ptr) \
           ((struct_type*)((int)elem_ptr - offset(struct_type, member)))
 

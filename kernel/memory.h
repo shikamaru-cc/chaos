@@ -43,11 +43,14 @@ struct mem_block {
 
 struct mem_block_desc {
   uint32_t block_size;
+  uint32_t block_cnt_per_arena;
   struct list free_list;
 };
 
 #define MEM_BLOCK_DESC_CNT 7
 
 void mem_block_descs_init(struct mem_block_desc descs[MEM_BLOCK_DESC_CNT]);
+
+void* sys_malloc(uint32_t size);
 
 #endif

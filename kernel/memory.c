@@ -3,7 +3,9 @@
 #include "sync.h"
 #include "stdint.h"
 #include "stdnull.h"
+#include "stdbool.h"
 #include "string.h"
+#include "global.h"
 #include "thread.h"
 #include "kernel/print.h"
 
@@ -56,7 +58,6 @@ static void mem_pool_init(uint32_t all_mem);
 
 void mem_init();
 
-// --
 // -- mem block and descriptor defined in memory.h
 // --
 
@@ -77,7 +78,7 @@ struct arena {
   bool large;
 };
 
-void* __sys_malloc(uint32_t size);
+void* sys_malloc(uint32_t size);
 
 // --
 // -- Implementation
@@ -355,6 +356,71 @@ void mem_init() {
   put_str("mem_init done\n");
 }
 
+void* sys_malloc(uint32_t size) {
+  struct task_struct* cur = running_thread();
+
+  struct mem_block_desc* mb_descs;
+  mb_descs = (cur->pgdir == NULL) ? k_block_descs : cur->u_block_descs;
+
+  enum pool_flags PF = (cur->pgdir == NULL) ? PF_KERNEL : PF_USER;
+
+  // Size > 1024, allocate large arena
+  if (size > 1024) {
+    uint32_t pg_cnt = DIV_ROUND_UP((size + sizeof(struct arena)), PG_SIZE);
+    // FIXME: malloc_page is not thread safe
+    struct arena* arena = (struct arena*)malloc_page(PF, pg_cnt);
+
+    if (arena == NULL) {
+      return NULL;
+    }
+
+    arena->descptr = NULL;
+    arena->cnt = pg_cnt;
+    arena->large = true;
+
+    return (void*)(arena + sizeof(struct arena));
+  }
+
+  // Allocate a free block, return the block address
+
+  int i;
+  struct mem_block_desc* mbd;
+  for (i = 0; i < MEM_BLOCK_DESC_CNT; i++) {
+    if (size <= mb_descs[i].block_size) {
+      mbd = &mb_descs[i];
+      break;
+    }
+  }
+
+  // No free mem block, allocate new arena page
+  if (list_empty(&mbd->free_list)) {
+    // FIXME: malloc_page is not thread safe
+    struct arena* arena = (struct arena*)malloc_page(PF, 1);
+
+    if (arena == NULL) {
+      return NULL;
+    }
+
+    arena->descptr = mbd;
+    arena->cnt = mbd->block_cnt_per_arena;
+    arena->large = false;
+
+    // Add free block to descs' free block list
+    struct mem_block* block = \
+      (struct mem_block*)((uint32_t)arena + sizeof(struct arena));
+    for (i = 0; i < arena->cnt; i++) {
+      ASSERT((uint32_t)block <= (uint32_t)arena + PG_SIZE - mbd->block_size);
+      list_append(&mbd->free_list, &block->free_elem);
+      block = (struct mem_block*)((uint32_t)block + mbd->block_size);
+    }
+  }
+
+  struct mem_block* free_block = \
+    elem2entry(struct mem_block, free_elem, list_pop(&mbd->free_list));
+
+  return (void*)free_block;
+}
+
 void mem_block_descs_init(struct mem_block_desc descs[MEM_BLOCK_DESC_CNT]) {
   // minimum size is 16 bytes
   uint32_t size = 16;
@@ -362,6 +428,11 @@ void mem_block_descs_init(struct mem_block_desc descs[MEM_BLOCK_DESC_CNT]) {
   int i;
   for (i = 0; i < MEM_BLOCK_DESC_CNT; i++) {
     descs[i].block_size = size;
+    descs[i].block_cnt_per_arena = (PG_SIZE - sizeof(struct arena)) / size;
+
+    ASSERT((descs[i].block_size * descs[i].block_cnt_per_arena + \
+      sizeof(struct arena)) < PG_SIZE);
+
     list_init(&descs[i].free_list);
     size *= 2;
   }

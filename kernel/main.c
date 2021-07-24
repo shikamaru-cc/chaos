@@ -10,6 +10,11 @@
 #include "stdio.h"
 #include "kernel/print.h"
 
+typedef struct malloc_test {
+  int a;
+  int b;
+} mtest_t;
+
 void k_thread_a(void* arg);
 void k_thread_b(void* arg);
 void u_proc_a(void);
@@ -66,6 +71,21 @@ void u_proc_a(void) {
   char buf[1024];
   sprintf(buf, "%s, I am proc %c, 1 - 100 = %d\n", "Hello", 'a', 1-100);
   printf("%s", buf);
+
+  mtest_t* mt = (mtest_t*)malloc(sizeof(mtest_t) * 4096);
+
+  int a = 0, b = 0;
+  mtest_t* mt_iter = mt;
+  while (a < 4096) {
+    mt_iter->a = a;
+    mt_iter->b = b;
+    printf("user prog a : mt a = %d\n", mt_iter->a);
+    printf("user prog a : mt b = %d\n", mt_iter->b);
+    mt_iter++;
+    a++;
+    b--;
+  }
+
   while(1);
 }
 
@@ -73,6 +93,15 @@ void u_proc_b(void) {
   pid_b = getpid();
   printf("user prog a pid : %d addr : 0x%x\n", pid_b, (uint32_t)u_proc_b);
   printf("%s, I am proc %c, 3 + 256 = %d\n", "Fuck you", 'b', 3+256);
+
+  mtest_t* mt = (mtest_t*)malloc(sizeof(mtest_t));
+
+  int a = 0, b = 0;
+  mt->a = a;
+  mt->b = b;
+  printf("user prog b : mt a = %d\n", mt->a);
+  printf("user prog b : mt b = %d\n", mt->b);
+
   while(1);
 }
 
