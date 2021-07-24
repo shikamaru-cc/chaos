@@ -7,6 +7,8 @@
 # Reference:
 # https://steemit.com/esteem/@geyu/10-cross-compiler-i386-elf-gcc 
 #
+# Requirements: gcc g++ libx11-dev
+#
 
 set -euxo pipefail
 

@@ -42,6 +42,9 @@ export LD_LIBRARY_PATH=/usr/local/lib
 
 all: build
 
+.PHONY: fetchtool
+fetchtool: build/init.mk
+
 # We need to install i386 tools for cross compile
 build/init.mk:
 	@echo "fetching i386 elf tools"
