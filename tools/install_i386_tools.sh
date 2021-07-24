@@ -122,6 +122,7 @@ if [ ! -f bochs.mk ]; then
   make clean
   ./configure --enable-debugger
   make
+  cp -r bios ../bochs/
   cp bochs ../bochs/
   popd
   touch bochs.mk
