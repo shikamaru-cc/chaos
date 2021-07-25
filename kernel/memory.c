@@ -36,15 +36,23 @@ struct va_pool k_va_pool;
 
 static void* vaddr_get(enum pool_flags pf, uint32_t pg_cnt);
 
+static void vaddr_free(enum pool_flags pf, void* _vaddr);
+
 uint32_t* pte_ptr(uint32_t vaddr);
 
 uint32_t* pde_ptr(uint32_t vaddr);
 
 static void* palloc(struct pa_pool* m_pool);
 
+static void pfree(struct pa_pool* m_pool, void* _paddr);
+
 static void page_table_add(void* _vaddr, void* _page_phyaddr);
 
+static void page_table_remove(void* _vaddr);
+
 void* malloc_page(enum pool_flags pf, uint32_t pg_cnt);
+
+void free_page(enum pool_flags pf, void* vaddr);
 
 void* get_kernel_pages(uint32_t pg_cnt);
 
@@ -79,6 +87,8 @@ struct arena {
 };
 
 void* sys_malloc(uint32_t size);
+
+void sys_free(void* vaddr);
 
 // --
 // -- Implementation
@@ -124,6 +134,22 @@ static void* vaddr_get(enum pool_flags pf, uint32_t pg_cnt) {
   return (void*)vaddr_start;
 }
 
+static void vaddr_free(enum pool_flags pf, void* _vaddr) {
+  struct va_pool* va_pool;
+  if (pf == PF_KERNEL) {
+    va_pool = &k_va_pool;
+  } else {
+    struct task_struct* cur = running_thread();
+    va_pool = &cur->u_va_pool;
+  }
+
+  uint32_t va = (uint32_t)_vaddr;
+  ASSERT(((va & 0x00000fff) == 0) && (va >= va_pool->start));
+  uint32_t bit_idx = (va - va_pool->start) / PG_SIZE;
+  ASSERT(bitmap_scan_test(&va_pool->btmp, bit_idx));
+  bitmap_unset(&va_pool->btmp, bit_idx);
+}
+
 // pte_ptr
 // Methods to construct the PTE virtual address for a given virtual, use it to
 // modify PTE.
@@ -149,13 +175,33 @@ uint32_t* pde_ptr(uint32_t vaddr) {
 
 // Allocate one page in m_pool, return the address
 static void* palloc(struct pa_pool* m_pool) {
+  lock_acquire(&m_pool->lock);
+
   int bit_idx;
   bit_idx = bitmap_scan(&m_pool->btmp, 1);
   if (bit_idx < 0) {
     return NULL;
   }
   bitmap_set(&m_pool->btmp, bit_idx);
+
+  lock_release(&m_pool->lock);
+
   return (void*)(m_pool->start + bit_idx * PG_SIZE);
+}
+
+// Free one page in m_pool
+static void pfree(struct pa_pool* m_pool, void* _paddr) {
+  lock_acquire(&m_pool->lock);
+
+  uint32_t pa = (uint32_t)_paddr;
+  ASSERT(((pa & 0x00000fff) == 0) && (pa >= m_pool->start));
+  int bit_idx;
+  bit_idx = (pa - m_pool->start) / PG_SIZE;
+  ASSERT(bitmap_scan_test(&m_pool->btmp, bit_idx));
+  bitmap_unset(&m_pool->btmp, bit_idx);
+
+  lock_release(&m_pool->lock);
+  return;
 }
 
 // Add map of given _vaddr and _page_phyaddr to page table
@@ -179,6 +225,17 @@ static void page_table_add(void* _vaddr, void* _page_phyaddr) {
   } else {
     PANIC("pte exist!");
   }
+}
+
+static void page_table_remove(void* _vaddr) {
+  uint32_t va = (uint32_t)_vaddr;
+  uint32_t* pde = pde_ptr(va);
+  uint32_t* pte = pte_ptr(va);
+
+  ASSERT(*pde & PG_P_1);
+  ASSERT(*pte & PG_P_1);
+
+  *pte &= ~(PG_P_1);
 }
 
 // Allocate pg_cnt pages
@@ -207,25 +264,34 @@ void* malloc_page(enum pool_flags pf, uint32_t pg_cnt) {
   return vaddr_start;
 }
 
+void free_page(enum pool_flags pf, void* _vaddr) {
+  // Remove page table maps
+  page_table_remove(_vaddr);
+
+  // Free physical page
+  struct pa_pool* m_pool = (pf == PF_KERNEL) ? &k_pa_pool : &u_pa_pool;
+  void* paddr = (void*)va2pa((uint32_t)_vaddr);
+  pfree(m_pool, paddr);
+
+  // Free virtual address
+  vaddr_free(pf, _vaddr);
+}
+
 // get pg_cnt pages from kernel_pool
 void* get_kernel_pages(uint32_t pg_cnt) {
-  lock_acquire(&k_pa_pool.lock);
   void* va = malloc_page(PF_KERNEL, pg_cnt);
   if (va != NULL) {
     memset(va, 0, pg_cnt * PG_SIZE);
   }
-  lock_release(&k_pa_pool.lock);
   return va;
 }
 
 // get pg_cnt pages from user_pool
 void* get_user_pages(uint32_t pg_cnt) {
-  lock_acquire(&u_pa_pool.lock);
   void* va = malloc_page(PF_USER, pg_cnt);
   if (va != NULL) {
     memset(va, 0, pg_cnt * PG_SIZE);
   }
-  lock_release(&u_pa_pool.lock);
   return va;
 }
 
@@ -242,8 +308,6 @@ void* get_a_page(enum pool_flags pf, uint32_t va) {
   struct pa_pool* pa_pool = pf & PF_KERNEL ? &k_pa_pool : &u_pa_pool;
   struct va_pool* va_pool = pf & PF_KERNEL ? &k_va_pool : &cur->u_va_pool;
 
-  lock_acquire(&pa_pool->lock);
-
   // set va_pool bitmap
   int32_t bit_idx = (va - va_pool->start) / PG_SIZE;
   ASSERT(bit_idx > 0);
@@ -256,8 +320,6 @@ void* get_a_page(enum pool_flags pf, uint32_t va) {
   }
 
   page_table_add((void*)va, pa);
-
-  lock_release(&pa_pool->lock);
 
   return (void*)va;
 }
@@ -356,6 +418,7 @@ void mem_init() {
   put_str("mem_init done\n");
 }
 
+// FIXME: va_pool and mem_block_descs are not thread-safe
 void* sys_malloc(uint32_t size) {
   struct task_struct* cur = running_thread();
 
@@ -367,7 +430,6 @@ void* sys_malloc(uint32_t size) {
   // Size > 1024, allocate large arena
   if (size > 1024) {
     uint32_t pg_cnt = DIV_ROUND_UP((size + sizeof(struct arena)), PG_SIZE);
-    // FIXME: malloc_page is not thread safe
     struct arena* arena = (struct arena*)malloc_page(PF, pg_cnt);
 
     if (arena == NULL) {
@@ -378,12 +440,12 @@ void* sys_malloc(uint32_t size) {
     arena->cnt = pg_cnt;
     arena->large = true;
 
-    return (void*)(arena + sizeof(struct arena));
+    return (void*)((uint32_t)arena + sizeof(struct arena));
   }
 
   // Allocate a free block, return the block address
 
-  int i;
+  uint32_t i;
   struct mem_block_desc* mbd;
   for (i = 0; i < MEM_BLOCK_DESC_CNT; i++) {
     if (size <= mb_descs[i].block_size) {
@@ -419,6 +481,33 @@ void* sys_malloc(uint32_t size) {
     elem2entry(struct mem_block, free_elem, list_pop(&mbd->free_list));
 
   return (void*)free_block;
+}
+
+#define block2arena(block_va) ((uint32_t)block_va & 0xfffff000)
+
+void sys_free(void* vaddr) {
+  struct task_struct* cur = running_thread();
+  enum pool_flags PF = (cur->pgdir == NULL) ? PF_KERNEL : PF_USER;
+
+  struct mem_block* block = (struct mem_block*)vaddr;
+  // The block coresponding arena
+  struct arena* arena = (struct arena*)block2arena(vaddr);
+
+  // For large arena, free arena pages
+  if (arena->large) {
+    uint32_t i;
+    for (i = 0; i < arena->cnt; i++) {
+      free_page(PF, (void*)((uint32_t)arena + i * PG_SIZE));
+    }
+    return;
+  }
+
+  // For general block, just add it to descs' free block list
+  struct mem_block_desc* mbd = arena->descptr;
+  ASSERT(mbd != NULL);
+
+  ASSERT(!elem_find(&mbd->free_list, &block->free_elem));
+  list_push(&mbd->free_list, &block->free_elem);
 }
 
 void mem_block_descs_init(struct mem_block_desc descs[MEM_BLOCK_DESC_CNT]) {

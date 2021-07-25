@@ -72,11 +72,11 @@ void u_proc_a(void) {
   sprintf(buf, "%s, I am proc %c, 1 - 100 = %d\n", "Hello", 'a', 1-100);
   printf("%s", buf);
 
-  mtest_t* mt = (mtest_t*)malloc(sizeof(mtest_t) * 4096);
+  mtest_t* mt = (mtest_t*)malloc(sizeof(mtest_t) * 100);
 
   int a = 0, b = 0;
   mtest_t* mt_iter = mt;
-  while (a < 4096) {
+  while (a < 100) {
     mt_iter->a = a;
     mt_iter->b = b;
     printf("user prog a : mt a = %d\n", mt_iter->a);
@@ -85,6 +85,11 @@ void u_proc_a(void) {
     a++;
     b--;
   }
+
+  free(mt);
+  // page fault should occur here
+  printf("user prog a : mt a = %d\n", mt->a);
+  printf("user prog a : mt b = %d\n", mt->b);
 
   while(1);
 }
@@ -99,6 +104,11 @@ void u_proc_b(void) {
   int a = 0, b = 0;
   mt->a = a;
   mt->b = b;
+  printf("user prog b : mt a = %d\n", mt->a);
+  printf("user prog b : mt b = %d\n", mt->b);
+
+  free(mt);
+  // page fault maybe not occur here
   printf("user prog b : mt a = %d\n", mt->a);
   printf("user prog b : mt b = %d\n", mt->b);
 

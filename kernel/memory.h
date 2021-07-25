@@ -25,6 +25,7 @@ enum pool_flags {
 #define PG_US_S 0
 #define PG_US_U (1 << 2)
 
+// FIXME: va_pool should be thread-safe, not yet
 struct va_pool {
   struct bitmap btmp;
   uint32_t start;
@@ -50,7 +51,7 @@ struct mem_block_desc {
 #define MEM_BLOCK_DESC_CNT 7
 
 void mem_block_descs_init(struct mem_block_desc descs[MEM_BLOCK_DESC_CNT]);
-
 void* sys_malloc(uint32_t size);
+void sys_free(void* va);
 
 #endif
