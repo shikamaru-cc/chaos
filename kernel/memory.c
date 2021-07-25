@@ -271,6 +271,14 @@ void free_page(enum pool_flags pf, void* _vaddr) {
   // Free physical page
   struct pa_pool* m_pool = (pf == PF_KERNEL) ? &k_pa_pool : &u_pa_pool;
   void* paddr = (void*)va2pa((uint32_t)_vaddr);
+
+  if (pf == PF_KERNEL) {
+    ASSERT((uint32_t)paddr >= k_pa_pool.start && \
+      (uint32_t)paddr < u_pa_pool.start);
+  } else {
+    ASSERT((uint32_t)paddr >= u_pa_pool.start);
+  }
+
   pfree(m_pool, paddr);
 
   // Free virtual address
