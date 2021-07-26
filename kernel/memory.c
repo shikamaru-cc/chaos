@@ -1,6 +1,5 @@
 #include "debug.h"
 #include "memory.h"
-#include "sync.h"
 #include "stdint.h"
 #include "stdnull.h"
 #include "stdbool.h"
@@ -22,13 +21,6 @@
 
 // The address storing total memory size, defined in boot/loader.asm
 #define MEMORY_TOTAL_BYTES_ADDR 0xa00
-
-struct pa_pool {
-  lock_t lock;
-  struct bitmap btmp;
-  uint32_t start;
-  uint32_t size;
-};
 
 struct pa_pool k_pa_pool, u_pa_pool;
 
@@ -66,6 +58,7 @@ static void mem_pool_init(uint32_t all_mem);
 
 void mem_init();
 
+//
 // -- mem block and descriptor defined in memory.h
 // --
 
@@ -82,12 +75,15 @@ void mem_block_descs_init(struct mem_block_desc descs[MEM_BLOCK_DESC_CNT]);
 
 struct arena {
   struct mem_block_desc* descptr;
+  // For large arena, cnt = total page cnt
+  // For general arena, cnt = free block cnt in this arena
   uint32_t cnt;
   bool large;
 };
 
-void* sys_malloc(uint32_t size);
+#define block2arena(block_va) ((uint32_t)block_va & 0xfffff000)
 
+void* sys_malloc(uint32_t size);
 void sys_free(void* vaddr);
 
 // --
@@ -175,8 +171,6 @@ uint32_t* pde_ptr(uint32_t vaddr) {
 
 // Allocate one page in m_pool, return the address
 static void* palloc(struct pa_pool* m_pool) {
-  lock_acquire(&m_pool->lock);
-
   int bit_idx;
   bit_idx = bitmap_scan(&m_pool->btmp, 1);
   if (bit_idx < 0) {
@@ -184,24 +178,17 @@ static void* palloc(struct pa_pool* m_pool) {
   }
   bitmap_set(&m_pool->btmp, bit_idx);
 
-  lock_release(&m_pool->lock);
-
   return (void*)(m_pool->start + bit_idx * PG_SIZE);
 }
 
 // Free one page in m_pool
 static void pfree(struct pa_pool* m_pool, void* _paddr) {
-  lock_acquire(&m_pool->lock);
-
   uint32_t pa = (uint32_t)_paddr;
   ASSERT(((pa & 0x00000fff) == 0) && (pa >= m_pool->start));
   int bit_idx;
   bit_idx = (pa - m_pool->start) / PG_SIZE;
   ASSERT(bitmap_scan_test(&m_pool->btmp, bit_idx));
   bitmap_unset(&m_pool->btmp, bit_idx);
-
-  lock_release(&m_pool->lock);
-  return;
 }
 
 // Add map of given _vaddr and _page_phyaddr to page table
@@ -287,19 +274,23 @@ void free_page(enum pool_flags pf, void* _vaddr) {
 
 // get pg_cnt pages from kernel_pool
 void* get_kernel_pages(uint32_t pg_cnt) {
+  spinlock_acquire(&k_pa_pool.lock);
   void* va = malloc_page(PF_KERNEL, pg_cnt);
   if (va != NULL) {
     memset(va, 0, pg_cnt * PG_SIZE);
   }
+  spinlock_release(&k_pa_pool.lock);
   return va;
 }
 
 // get pg_cnt pages from user_pool
 void* get_user_pages(uint32_t pg_cnt) {
+  spinlock_acquire(&u_pa_pool.lock);
   void* va = malloc_page(PF_USER, pg_cnt);
   if (va != NULL) {
     memset(va, 0, pg_cnt * PG_SIZE);
   }
+  spinlock_release(&u_pa_pool.lock);
   return va;
 }
 
@@ -316,6 +307,8 @@ void* get_a_page(enum pool_flags pf, uint32_t va) {
   struct pa_pool* pa_pool = pf & PF_KERNEL ? &k_pa_pool : &u_pa_pool;
   struct va_pool* va_pool = pf & PF_KERNEL ? &k_va_pool : &cur->u_va_pool;
 
+  spinlock_acquire(&pa_pool->lock);
+
   // set va_pool bitmap
   int32_t bit_idx = (va - va_pool->start) / PG_SIZE;
   ASSERT(bit_idx > 0);
@@ -328,6 +321,8 @@ void* get_a_page(enum pool_flags pf, uint32_t va) {
   }
 
   page_table_add((void*)va, pa);
+
+  spinlock_release(&pa_pool->lock);
 
   return (void*)va;
 }
@@ -378,8 +373,8 @@ static void mem_pool_init(uint32_t all_mem) {
   bitmap_init(&u_pa_pool.btmp);
 
   // init lock
-  lock_init(&k_pa_pool.lock);
-  lock_init(&u_pa_pool.lock);
+  spinlock_init(&k_pa_pool.lock);
+  spinlock_init(&u_pa_pool.lock);
 
   put_str("    kernel pool bitmap start : ");
   put_int((int)k_pa_pool.btmp.bits);
@@ -435,12 +430,16 @@ void* sys_malloc(uint32_t size) {
 
   enum pool_flags PF = (cur->pgdir == NULL) ? PF_KERNEL : PF_USER;
 
+  struct pa_pool* pa_pool = (PF == PF_KERNEL) ? &k_pa_pool : &u_pa_pool;
+  spinlock_acquire(&pa_pool->lock);
+
   // Size > 1024, allocate large arena
   if (size > 1024) {
     uint32_t pg_cnt = DIV_ROUND_UP((size + sizeof(struct arena)), PG_SIZE);
     struct arena* arena = (struct arena*)malloc_page(PF, pg_cnt);
 
     if (arena == NULL) {
+      spinlock_release(&pa_pool->lock);
       return NULL;
     }
 
@@ -448,6 +447,7 @@ void* sys_malloc(uint32_t size) {
     arena->cnt = pg_cnt;
     arena->large = true;
 
+    spinlock_release(&pa_pool->lock);
     return (void*)((uint32_t)arena + sizeof(struct arena));
   }
 
@@ -468,6 +468,7 @@ void* sys_malloc(uint32_t size) {
     struct arena* arena = (struct arena*)malloc_page(PF, 1);
 
     if (arena == NULL) {
+      spinlock_release(&pa_pool->lock);
       return NULL;
     }
 
@@ -488,14 +489,19 @@ void* sys_malloc(uint32_t size) {
   struct mem_block* free_block = \
     elem2entry(struct mem_block, free_elem, list_pop(&mbd->free_list));
 
+  struct arena* arena = (struct arena*)block2arena(free_block);
+  arena->cnt--;
+
+  spinlock_release(&pa_pool->lock);
   return (void*)free_block;
 }
-
-#define block2arena(block_va) ((uint32_t)block_va & 0xfffff000)
 
 void sys_free(void* vaddr) {
   struct task_struct* cur = running_thread();
   enum pool_flags PF = (cur->pgdir == NULL) ? PF_KERNEL : PF_USER;
+
+  struct pa_pool* pa_pool = (PF == PF_KERNEL) ? &k_pa_pool : &u_pa_pool;
+  spinlock_acquire(&pa_pool->lock);
 
   struct mem_block* block = (struct mem_block*)vaddr;
   // The block coresponding arena
@@ -503,10 +509,12 @@ void sys_free(void* vaddr) {
 
   // For large arena, free arena pages
   if (arena->large) {
+    uint32_t cnt = arena->cnt;
     uint32_t i;
-    for (i = 0; i < arena->cnt; i++) {
+    for (i = 0; i < cnt; i++) {
       free_page(PF, (void*)((uint32_t)arena + i * PG_SIZE));
     }
+    spinlock_release(&pa_pool->lock);
     return;
   }
 
@@ -516,6 +524,30 @@ void sys_free(void* vaddr) {
 
   ASSERT(!elem_find(&mbd->free_list, &block->free_elem));
   list_push(&mbd->free_list, &block->free_elem);
+
+  arena->cnt++;
+
+  // If the arena has no busy block, free it
+  if (arena->cnt == mbd->block_cnt_per_arena) {
+    // Remove free block from descs owning this arena
+
+    uint32_t i;
+    struct mem_block* free_block;
+    free_block = (struct mem_block*)((uint32_t)arena + sizeof(struct arena));
+
+    for (i = 0; i < mbd->block_cnt_per_arena; i++) {
+      ASSERT(elem_find(&mbd->free_list, &free_block->free_elem));
+      list_remove(&free_block->free_elem);
+      // Iter next block
+      free_block = \
+        (struct mem_block*)((uint32_t)free_block + mbd->block_size);
+    }
+
+    free_page(PF, arena);
+  }
+
+  spinlock_release(&pa_pool->lock);
+  return;
 }
 
 void mem_block_descs_init(struct mem_block_desc descs[MEM_BLOCK_DESC_CNT]) {

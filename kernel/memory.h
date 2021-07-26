@@ -2,6 +2,7 @@
 #define __KERNEL_MEMORY_H
 
 #include "stdint.h"
+#include "spinlock.h"
 #include "kernel/list.h"
 #include "kernel/bitmap.h"
 
@@ -29,6 +30,13 @@ enum pool_flags {
 struct va_pool {
   struct bitmap btmp;
   uint32_t start;
+};
+
+struct pa_pool {
+  spinlock_t lock;
+  struct bitmap btmp;
+  uint32_t start;
+  uint32_t size;
 };
 
 extern struct pa_pool k_pa_pool, u_pa_pool;
