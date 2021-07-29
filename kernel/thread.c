@@ -16,6 +16,8 @@
 
 struct task_struct* main_thread;
 
+struct task_struct* idle_thread;
+
 struct list thread_ready_list;
 
 struct list thread_all_list;
@@ -193,6 +195,16 @@ void thread_unblock(struct task_struct* pthread) {
   intr_set_status(old_status);
 }
 
+void thread_yield(void) {
+  enum intr_status old_status = intr_disable();
+  struct task_struct* cur = running_thread();
+  ASSERT(!elem_find(&thread_ready_list, &cur->general_tag));
+  list_append(&thread_ready_list, &cur->general_tag);
+  cur->status = TASK_READY;
+  schedule();
+  intr_set_status(old_status);
+}
+
 static void make_main_thread(void) {
   main_thread = running_thread();
   task_init(main_thread, "main", 31);
@@ -201,12 +213,21 @@ static void make_main_thread(void) {
   list_append(&thread_all_list, &main_thread->all_list_tag);
 }
 
+static void idle(void* UNUSED_ARG) {
+  while(1) {
+    thread_block(TASK_BLOCKED);
+    // Must open interrupt when hlt
+    asm volatile("sti; hlt" : : : "memory");
+  }
+}
+
 void thread_init(void) {
   put_str("thread_init start\n");
   list_init(&thread_ready_list);
   list_init(&thread_all_list);
   lock_init(&pid_lock);
   make_main_thread();
+  idle_thread = thread_start("idle", 10, idle, NULL);
   put_str("thread_init done\n");
 }
 
@@ -228,7 +249,9 @@ void schedule() {
     // Thread is blocked, do nothing
   }
 
-  ASSERT(!list_empty(&thread_ready_list));
+  if (list_empty(&thread_ready_list)) {
+    thread_unblock(idle_thread);
+  }
 
   // Pop the top of list node
   thread_tag = NULL;

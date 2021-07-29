@@ -104,6 +104,7 @@ struct task_struct* running_thread(void);
 void thread_init(void);
 void thread_block(enum task_status);
 void thread_unblock(struct task_struct*);
+void thread_yield(void);
 void schedule(void);
 
 #endif
