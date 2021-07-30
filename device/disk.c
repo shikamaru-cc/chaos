@@ -34,19 +34,42 @@ void ide_channel_rw(struct ide_channel* ide, uint8_t cmd, uint32_t lba, \
 
 // ------------------------------ Implementation ---------------------------- //
 
-// ide_channel_rw
-// Read or write given ide_channel, depending on cmd
-void ide_channel_rw(struct ide_channel* ide, uint8_t cmd, uint32_t lba, \
-  uint32_t sec_cnt, enum disk_type dt, void* data) {
+// ide_channel_setup
+// Setup ide channel's sector count, lba and device register before sending
+// command.
+void ide_channel_setup(struct ide_channel* ide, uint32_t lba, \
+  uint8_t sec_cnt, enum disk_type dt) {
+  // Write sector count
+  outb(ide_channel_sec(ide), sec_cnt);
+
+  // Write LBA 0~7
+  outb(ide_channel_lba1(ide), lba);
+  // Write LBA 8~15
+  outb(ide_channel_lba2(ide), lba >> 8);
+  // Write LBA 16~23
+  outb(ide_channel_lba3(ide), lba >> 16);
+
+  // Write Device
+  uint8_t device = IDE_DEV_MBS1 | IDE_DEV_MOD_LBA | IDE_DEV_MBS2;
+  device |= (lbd >> 24);
+  if (dt == DISK_MASTER) {
+    device |= IDE_DEV_MASTER;
+  } else {
+    device |= IDE_DEV_SLAVE;
+  }
+  outb(ide_channel_dev(ide), device);
+
+  return;
+}
+
+void ide_channel_read(struct ide_channel* ide, uint32_t lba, uint32_t sec_cnt, \
+  enum disk_type dt, void* data) {
   // Two disk share one channel, we need lock
   lock_acquire(&ide->lock);
 
+  uint8_t nsec = 0;
   while (sec_cnt != 0) {
-    // We can only write 255 sectors each time, since the sec_cnt reg 
-    // is 8 bit. nsec is the number of sectors to write in this loop.
-    uint8_t nsec = 0;
-
-    // Write sector count
+    // We can only write 255 sectors each time, since the sec_cnt reg is 8 bit
     if sec_cnt > 255 {
       nsec = 255;
       sec_cnt -= 255;
@@ -54,54 +77,70 @@ void ide_channel_rw(struct ide_channel* ide, uint8_t cmd, uint32_t lba, \
       nsec = sec_cnt
       sec_cnt = 0;
     }
-    outb(ide_channel_sec(ide), nsec);
 
-    // Write LBA 0~7
-    outb(ide_channel_lba1(ide), lba);
-    // Write LBA 8~15
-    outb(ide_channel_lba2(ide), lba >> 8);
-    // Write LBA 16~23
-    outb(ide_channel_lba3(ide), lba >> 16);
+    ide_channel_setup(ide, lba, nsec, dt);
 
-    // Write Device
-    uint8_t device = IDE_DEV_MBS1 | IDE_DEV_MOD_LBA | IDE_DEV_MBS2;
-    device |= (lbd >> 24);
-    if (dt == DISK_MASTER) {
-      device |= IDE_DEV_MASTER;
-    } else {
-      device |= IDE_DEV_SLAVE;
-    }
-    outb(ide_channel_dev(ide), device);
-
-    // Update lba
-    lba += nsec;
-
-    // Write command
-    outb(ide_channel_cmd(ide), cmd);
+    // Write command read
+    outb(ide_channel_cmd(ide), IDE_CMD_READ);
 
     // Wait disk interrupt to wake me up
     ide->user_thread = running_thread();
     thread_block(TASK_BLOCKED);
 
-    // Read or write data
-    uint32_t wordcount = nsec * 512 / 2;
-    switch (cmd) {
-    case IDE_CMD_READ:
-      insw(ide_channel_data(ide), data, wordcount);
-      break;
-    case IDE_CMD_WRITE:
-      outsw(ide_channel_data(ide), data, wordcount);
-      break;
-    case IDE_CMD_IDEN:
-      // TODO
-      break;
-    default:
-      PANIC("Unknown ide channel cmd");
-    }
-
+    // Update lba and data ptr for next loop
+    lba += nsec;
     data += wordcount;
   }
 
   lock_release(&ide->lock);
   return;
 }
+
+void ide_channel_write(struct ide_channel* ide, uint32_t lba, uint32_t sec_cnt, \
+  enum disk_type dt, void* data) {
+  // Two disk share one channel, we need lock
+  lock_acquire(&ide->lock);
+
+  uint8_t nsec = 0;
+  while (sec_cnt != 0) {
+    // We can only write 255 sectors each time, since the sec_cnt reg is 8 bit
+    if sec_cnt > 255 {
+      nsec = 255;
+      sec_cnt -= 255;
+    } else {
+      nsec = sec_cnt
+      sec_cnt = 0;
+    }
+
+    ide_channel_setup(ide, lba, nsec, dt);
+
+    // Write command write
+    outb(ide_channel_cmd(ide), IDE_CMD_WRITE);
+
+    // Wait disk interrupt to wake me up
+    ide->user_thread = running_thread();
+    thread_block(TASK_BLOCKED);
+
+    // Update lba and data ptr for next loop
+    lba += nsec;
+    data += wordcount;
+  }
+
+  lock_release(&ide->lock);
+  return;
+}
+
+static void intr_disk_handler(void) {
+
+
+
+}
+
+
+
+
+
+
+
+
+
