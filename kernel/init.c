@@ -1,4 +1,5 @@
 #include "console.h"
+#include "disk.h"
 #include "init.h"
 #include "timer.h"
 #include "interrupt.h"
@@ -19,4 +20,5 @@ void init_all() {
   console_init();
   keyboard_init();
   syscall_init();
+  disk_init();
 }

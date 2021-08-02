@@ -11,3 +11,4 @@ mouse: enabled=0
 
 ata0: enabled=1,ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
 ata0-master: type=disk, path="WORKSPACE/disk.img", cylinders=20, heads=16, spt=63
+ata0-slave: type=disk, path="WORKSPACE/hd80M.img", cylinders=162, heads=16, spt=63

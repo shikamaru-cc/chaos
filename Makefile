@@ -71,6 +71,7 @@ BXIMAGE=build/bochs/bximage
 WORKSPACE/disk.img:
 	mkdir -p WORKSPACE
 	$(BXIMAGE) -mode=create -hd=10M -q ./WORKSPACE/disk.img
+	$(BXIMAGE) -mode=create -hd=80M -q ./WORKSPACE/hd80M.img
 
 .PHONY: build
 build build-debug: build/init.mk $(BINS) WORKSPACE/disk.img
