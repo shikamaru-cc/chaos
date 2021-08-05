@@ -10,6 +10,10 @@ typedef struct {
   struct list waiters;
 } sem_t;
 
+void sem_init(sem_t* sem, uint8_t value);
+void sem_wait(sem_t* sem);
+void sem_post(sem_t* sem);
+
 typedef struct {
   struct task_struct* holder; /* lock holder*/
   sem_t sem;

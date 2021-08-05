@@ -137,10 +137,10 @@ static void pic_init(void) {
   outb(PIC_S_DATA, PIC_S_ICW3);
   outb(PIC_S_DATA, PIC_S_ICW4);
 
-  // Open timer and keyboard interrupt
+  // Open timer, keyboard and disk interrupt
   // Actually we are outing data to OCW1
-  outb(PIC_M_DATA, 0xfc);
-  outb(PIC_S_DATA, 0xff);
+  outb(PIC_M_DATA, 0xf8);
+  outb(PIC_S_DATA, 0xbf);
 
   put_str("    init pic\n");
 }

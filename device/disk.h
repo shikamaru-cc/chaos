@@ -14,7 +14,7 @@ struct ide_channel {
   uint16_t port_base; // Control port base
   uint8_t irq_no;
   lock_t lock;
-  struct task_struct* user_thread; // The thread using this channel
+  sem_t sem;
 };
 
 void disk_init(void);

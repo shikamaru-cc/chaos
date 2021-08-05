@@ -1,5 +1,7 @@
 #include "debug.h"
 #include "disk.h"
+#include "sync.h"
+#include "interrupt.h"
 #include "kernel/print.h"
 #include "kernel/io.h"
 
@@ -43,6 +45,8 @@
 void ide_channel_setup(struct ide_channel* ide, uint32_t lba, \
   uint8_t sec_cnt, enum disk_type dt);
 
+void ide_channel_pio(struct ide_channel* ide);
+
 void ide_channel_read(struct ide_channel* ide, uint32_t lba, \
   uint32_t sec_cnt, enum disk_type dt, void* buf);
 
@@ -83,6 +87,35 @@ void ide_channel_setup(struct ide_channel* ide, uint32_t lba, \
   return;
 }
 
+// ide_channel_pio
+// Polling ide channel status reg, at most wait for 30 seconds 
+void ide_channel_pio(struct ide_channel* ide) {
+  static uint32_t max_wait_msecs = 30 * 1000;
+  static uint32_t sleep_msecs = 10;
+  uint32_t wait_msecs = 0;
+  uint8_t status, err;
+
+  while (wait_msecs < max_wait_msecs) {
+    err = inb(ide_channel_error(ide));
+    if (err != 0) {
+      PANIC("ide channel error happen");
+    }
+
+    status = inb(ide_channel_status(ide));
+    bool disk_busy = (status & IDE_STATUS_BSY) > 0;
+    bool trans_ready = (status & IDE_STATUS_DRQ) > 0;
+
+    if (!disk_busy && trans_ready) {
+      return;
+    }
+
+    sys_milisleep(sleep_msecs);
+    wait_msecs += sleep_msecs;
+  }
+
+  PANIC("ide_channel_pio bug: wait for disk ready over 30 seconds");
+}
+
 void ide_channel_read(struct ide_channel* ide, uint32_t lba, \
   uint32_t sec_cnt, enum disk_type dt, void* buf) {
   // Two disk share one channel, we need lock
@@ -95,7 +128,7 @@ void ide_channel_read(struct ide_channel* ide, uint32_t lba, \
       nsec = 255;
       sec_cnt -= 255;
     } else {
-      nsec = sec_cnt
+      nsec = sec_cnt;
       sec_cnt = 0;
     }
 
@@ -104,16 +137,8 @@ void ide_channel_read(struct ide_channel* ide, uint32_t lba, \
     // Write command read
     outb(ide_channel_cmd(ide), IDE_CMD_READ);
 
-    // Wait disk interrupt to wake me up
-    ide->user_thread = running_thread();
-    thread_block(TASK_BLOCKED);
-
-    uint8_t status = inb(ide_channel_status(ide));
-    if (status & IDE_STATUS_BSY) {
-      PANIC("Why you are busy ???");
-    } else if (!(status & IDE_STATUS_DRQ)) {
-      PANIC("Why you are not ready ???");
-    }
+    // Wait disk interrupt
+    sem_wait(&ide->sem);
 
     uint32_t wordcount = nsec * 512 / 2;
     insw(ide_channel_data(ide), buf, wordcount);
@@ -139,7 +164,7 @@ void ide_channel_write(struct ide_channel* ide, uint32_t lba, \
       nsec = 255;
       sec_cnt -= 255;
     } else {
-      nsec = sec_cnt
+      nsec = sec_cnt;
       sec_cnt = 0;
     }
 
@@ -148,23 +173,13 @@ void ide_channel_write(struct ide_channel* ide, uint32_t lba, \
     // Write command write
     outb(ide_channel_cmd(ide), IDE_CMD_WRITE);
 
-    // Wait for disk ready
-    ide->user_thread = running_thread();
-    thread_block(TASK_BLOCKED);
-
-    uint8_t status = inb(ide_channel_status(ide));
-    if (status & IDE_STATUS_BSY) {
-      PANIC("Why you are busy ???");
-    } else if (!(status & IDE_STATUS_DRQ)) {
-      PANIC("Why you are not ready ???");
-    }
+    ide_channel_pio(ide);
 
     uint32_t wordcount = nsec * 512 / 2;
     outsw(ide_channel_data(ide), buf, wordcount);
 
     // Wait for finishing writing
-    ide->user_thread = running_thread();
-    thread_block(TASK_BLOCKED);
+    sem_wait(&ide->sem);
 
     // Update lba and data ptr for next loop
     lba += nsec;
@@ -184,7 +199,8 @@ static void ide_channel_init(uint32_t ide_channel_cnt) {
     ide->port_base = 0x1f0;
     ide->irq_no = 0x2e;
     lock_init(&ide->lock);
-    ide->user_thread = NULL;
+    sem_init(&ide->sem, 0);
+    register_handler(0x2e, intr_disk_handler);
   }
 
   if (ide_channel_cnt > 1) {
@@ -192,7 +208,8 @@ static void ide_channel_init(uint32_t ide_channel_cnt) {
     ide->port_base = 0x170;
     ide->irq_no = 0x2f;
     lock_init(&ide->lock);
-    ide->user_thread = NULL;
+    sem_init(&ide->sem, 0);
+    register_handler(0x2f, intr_disk_handler);
   }
 
   return;
@@ -201,12 +218,9 @@ static void ide_channel_init(uint32_t ide_channel_cnt) {
 static void intr_disk_handler(uint8_t irq_no) {
   ASSERT(irq_no == 0x2e || irq_no == 0x2f);
   uint8_t ch_no = irq_no - 0x2e;
-  struct ide_channel* ide = ide_channels[ch_no];
+  struct ide_channel* ide = &ide_channels[ch_no];
   ASSERT(ide->irq_no == irq_no);
-  if (ide->user_thread != NULL) {
-    thread_unblock(ide->user_thread);
-    ide->user_thread = NULL;
-  }
+  sem_post(&ide->sem);
   // inform disk interrupt has been handled;
   inb(ide_channel_status(ide));
 }

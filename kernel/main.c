@@ -86,8 +86,11 @@ char disk_test_buf_w[512], disk_test_buf_r[512];
 void disk_test(void* arg) {
   printf("test disk module\n");
   memset(disk_test_buf_w, 'z', 256);
-  memset(disk_test_buf_w + 256, 'z', 256);
+  memset(disk_test_buf_w + 256, 'x', 255);
   ide_channel_write(&ide_channels[0], 1, 1, DISK_SLAVE, disk_test_buf_w);
   ide_channel_read(&ide_channels[0], 1, 1, DISK_SLAVE, disk_test_buf_r);
-  printf("%c %c\n", disk_test_buf_r[123], disk_test_buf_r[255]);
+  disk_test_buf_r[511] = '\0';
+  printf("%s", disk_test_buf_r);
+
+  while(1);
 }
