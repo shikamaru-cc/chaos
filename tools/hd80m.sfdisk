@@ -1,0 +1,9 @@
+label: dos
+label-id: 0x70fa6154
+device: hd80M.img
+unit: sectors
+
+hd80M.img1 : start=          63, size=       32257, type=83
+hd80M.img4 : start=       32320, size=      130976, type=5
+hd80M.img5 : start=       32383, size=       64640, type=83
+hd80M.img6 : start=       97086, size=       66210, type=83
