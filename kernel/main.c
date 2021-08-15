@@ -12,11 +12,10 @@
 
 // DEBUG ONLY
 #include "rand.h"
-#include "disk.h"
 #include "stdnull.h"
 
 void u_malloc_test(void);
-void disk_test(void* arg);
+// void disk_test(void* arg);
 
 int main(void) {
   put_str("\nWelcome to Chaos ..\n");
@@ -25,7 +24,7 @@ int main(void) {
   intr_enable();
 
   // process_execute(u_malloc_test, "u_malloc_test");
-  thread_start("disk_test", 31, disk_test, NULL);
+  // thread_start("disk_test", 31, disk_test, NULL);
 
   // while(1);
   thread_block(TASK_BLOCKED);
@@ -81,6 +80,7 @@ void u_malloc_test(void) {
   while(1);
 }
 
+/*
 char disk_test_buf_w[512], disk_test_buf_r[512];
 
 void disk_test(void* arg) {
@@ -94,3 +94,4 @@ void disk_test(void* arg) {
 
   while(1);
 }
+*/
