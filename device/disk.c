@@ -2,6 +2,8 @@
 #include "disk.h"
 #include "sync.h"
 #include "string.h"
+#include "stdio.h"
+#include "stdnull.h"
 #include "interrupt.h"
 #include "kernel/print.h"
 #include "kernel/io.h"
@@ -65,6 +67,10 @@ static void intr_disk_handler(uint8_t irq_no);
 
 // -------------------------------- Struct disk ----------------------------- //
 
+// Private variables
+
+uint8_t disk_cnt;
+
 // Private methods
 
 static void disk_swap_pairbytes(char* buf, uint32_t buflen);
@@ -81,6 +87,46 @@ void disk_read(struct disk* hd, void* buf, uint32_t lba, uint32_t sec_cnt);
 void disk_write(struct disk* hd, void* buf, uint32_t lba, uint32_t sec_cnt);
 
 void disk_init(void);
+
+// --------------------------- Struct partition ----------------------------- //
+
+// Private struct for partition entry
+
+#define FS_TYPE_NONE    0x0
+#define FS_TYPE_EXTEND  0x5
+#define FS_TYPE_LINUX   0x83
+
+struct partition_table_entry {
+  uint8_t bootable;
+  uint8_t start_head;
+  uint8_t start_sec;
+  uint8_t start_chs;
+  uint8_t fs_type;
+  uint8_t end_head;
+  uint8_t end_sec;
+  uint8_t end_chs;
+  uint32_t lba_start;
+  uint32_t sec_cnt;
+} __attribute__ ((packed));
+
+struct boot_sector {
+  uint8_t other[446];
+  struct partition_table_entry partition_table[4];
+  uint16_t signature; // 0x55, 0xaa
+} __attribute__ ((packed));
+
+// Private methods
+
+static struct partition* new_partition(struct disk* hd, uint32_t lba_start, \
+  uint32_t sec_cnt, uint8_t fs_type, uint32_t p_no);
+
+static void partition_scan(struct disk* hd, uint32_t lba);
+
+static void partition_string(struct list_elem* elem);
+
+static void partition_printall(void);
+
+static void partition_init(void);
 
 // ------------------------------ Implementation ---------------------------- //
 
@@ -310,8 +356,11 @@ static void disk_init_per_disk(uint8_t disk_no, struct ide_channel* ide, \
   struct disk* hd = &disks[disk_no];
   hd->ide = ide;
   hd->dt = dt;
+  sprintf(hd->name, "hd%c", disk_no + 'a');
   disk_identify(hd);
+  hd->part_cnt = 0;
   printf("  disk%d:\n", disk_no);
+  printf("    name: %s\n", hd->name);
   printf("    sequence: %s\n", hd->seq);
   printf("    module: %s\n", hd->module);
   printf("    total sectors: %d\n", hd->sec_total);
@@ -321,7 +370,7 @@ static void disk_init_per_disk(uint8_t disk_no, struct ide_channel* ide, \
 #define DISK_CNT_ADDR 0x475
 void disk_init(void) {
   put_str("disk_init start\n");
-  uint8_t disk_cnt = *((uint8_t*)(DISK_CNT_ADDR));
+  disk_cnt = *((uint8_t*)(DISK_CNT_ADDR));
   ASSERT((disk_cnt > 0) && (disk_cnt <= 4));
   ide_channel_init(disk_cnt);
 
@@ -340,5 +389,89 @@ void disk_init(void) {
   disk_init_per_disk(3, &ide_channels[1], DISK_SLAVE);
 
 done:
+  partition_init();
   put_str("disk_init done\n");
+}
+
+static struct partition* new_partition(struct disk* hd, uint32_t lba_start, \
+  uint32_t sec_cnt, uint8_t fs_type, uint32_t p_no) {
+  struct partition* p;
+  p = (struct partition*)sys_malloc(sizeof(struct partition));
+  p->hd = hd;
+  p->lba_start = lba_start;
+  p->sec_cnt = sec_cnt;
+  p->fs_type = fs_type;
+  sprintf(p->name, "%sp%d", hd->name, p_no);
+  return p;
+}
+
+static void partition_scan(struct disk* hd, uint32_t lba) {
+  struct boot_sector* bs;
+  bs = (struct boot_sector*)sys_malloc(sizeof(struct boot_sector));
+
+  disk_read(hd, (void*)bs, lba, 1);
+
+  // check signature
+  if (bs->signature != 0xaa55) {
+    goto ret;
+  }
+
+  struct partition_table_entry* pte;
+  struct partition* p;
+  int i;
+  for (i = 0; i < 4; i++) {
+    pte = &bs->partition_table[i];
+    switch (pte->fs_type) {
+    case FS_TYPE_NONE:
+      break;
+    case FS_TYPE_EXTEND:
+      partition_scan(hd, lba + pte->lba_start);
+      break;
+    case FS_TYPE_LINUX:
+      p = new_partition(hd, lba + pte->lba_start, pte->sec_cnt, \
+        FS_TYPE_LINUX, hd->part_cnt++);
+      list_append(&disk_partitions, &p->tag);
+    }
+  }
+
+ret:
+  sys_free(bs);
+  return;
+}
+
+static void partition_string(struct list_elem* elem) {
+  struct partition* p = elem2entry(struct partition, tag, elem);
+  ASSERT((p != NULL) && (p->fs_type != FS_TYPE_NONE));
+  char type_name[8];
+  switch (p->fs_type) {
+  case FS_TYPE_EXTEND:
+    sprintf(type_name, "EXTEND");
+    break;
+  case FS_TYPE_LINUX:
+    sprintf(type_name, "LINUX");
+    break;
+  }
+
+  printf("    %s device:%s start:%d sectors:%d size:%dMB type:%s\n", \
+    p->name, p->hd->name, p->lba_start, p->sec_cnt, \
+    p->sec_cnt * 512 / 1024 / 1024, type_name);
+
+  return;
+}
+
+static void partition_printall(void) {
+  printf("  partitions:\n");
+  list_iterate(&disk_partitions, partition_string);
+}
+
+static void partition_init(void) {
+  ASSERT((disk_cnt > 0) && (disk_cnt <= 4));
+  list_init(&disk_partitions);
+
+  int i;
+  for (i = 0; i < disk_cnt; i++) {
+    partition_scan(&disks[i], 0);
+  }
+
+  partition_printall();
 }
