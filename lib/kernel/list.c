@@ -26,8 +26,13 @@ void list_push(struct list* plist, struct list_elem* elem) {
   list_insert_before(plist->head.next, elem);
 }
 
-void list_iterate(struct list* plist) {
-  
+void list_iterate(struct list* plist, list_iter_fn fn) {
+  struct list_elem* elem = plist->head.next;
+  while (elem != &plist->tail) {
+    fn(elem);
+    elem = elem->next;
+  }
+  return;
 }
 
 void list_append(struct list* plist, struct list_elem* elem) {
