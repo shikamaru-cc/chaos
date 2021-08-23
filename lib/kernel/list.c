@@ -48,6 +48,10 @@ void list_remove(struct list_elem* elem) {
   intr_set_status(old_status);
 }
 
+struct list_elem* list_top(struct list* plist) {
+  return plist->head.next;
+}
+
 struct list_elem* list_pop(struct list* plist) {
   struct list_elem* pelem = plist->head.next;
   list_remove(pelem);
