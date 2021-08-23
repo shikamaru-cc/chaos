@@ -7,6 +7,7 @@
 #include "syscall.h"
 #include "tss.h"
 #include "thread.h"
+#include "fs.h"
 #include "keyboard.h"
 #include "kernel/print.h"
 
@@ -21,4 +22,5 @@ void init_all() {
   keyboard_init();
   syscall_init();
   disk_init();
+  fs_init();
 }

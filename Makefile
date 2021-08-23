@@ -10,6 +10,8 @@ LIB_U_OBJS = $(subst .asm,.o,$(wildcard lib/user/*.asm)) \
 LIB_K_OBJS = $(subst .asm,.o,$(wildcard lib/kernel/*.asm)) \
              $(subst .c,.o,$(wildcard lib/kernel/*.c))
 
+FS_OBJS = $(subst .c,.o,$(wildcard fs/*.c))
+
 D_OBJS = $(subst .c,.o,$(wildcard device/*.c))
 
 U_OBJS = $(subst .c,.o,$(wildcard user/*.c))
@@ -20,16 +22,17 @@ K_OBJS = $(subst .c,.o,$(wildcard kernel/*.c)) \
 OBJS = $(K_OBJS) \
        $(U_OBJS) \
        $(D_OBJS) \
+       $(FS_OBJS) \
        $(LIB_OBJS) \
        $(LIB_K_OBJS)
 
 AS = nasm
 CC = build/i386-elf-gcc/bin/i386-elf-gcc
 LD = build/i386-elf-gcc/bin/i386-elf-ld
-LIB = -I lib/ -I kernel/ -I device/ -I user/
+LIB = -I lib/ -I kernel/ -I device/ -I user/ -I fs/
 ASFLAGS = -f elf
 
-DEBUG = 0
+DEBUG = 1
 CFLAGS = -Wall $(LIB) -c -fno-builtin -W -Wstrict-prototypes \
          -Wmissing-prototypes -g
 ifeq ($(DEBUG), 1)
