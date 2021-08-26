@@ -134,6 +134,17 @@ void task_init(struct task_struct* pthread, char* name, int prio) {
   pthread->ticks = prio;
   pthread->elapsed_ticks = 0;
   pthread->pgdir = NULL;
+
+  // init file descriptors
+  pthread->fd_table[0] = 0; // stdin
+  pthread->fd_table[1] = 1; // stdout
+  pthread->fd_table[2] = 2; // stderr
+  // other fds set to -1
+  int i;
+  for (i = 3; i < MAX_PROC_OPEN_FD; i++) {
+    pthread->fd_table[i] = -1;
+  }
+
   pthread->stack_magic = STACK_MAGIC;
 }
 
