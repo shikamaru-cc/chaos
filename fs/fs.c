@@ -1,12 +1,12 @@
 #include "fs.h"
 #include "debug.h"
 #include "stdio.h"
+#include "string.h"
 #include "stdnull.h"
 #include "stdbool.h"
 #include "global.h"
+#include "thread.h"
 #include "memory.h"
-
-// ---------------------------- Struct inode -------------------------------- //
 
 // -------------------------- Struct fs_manager ----------------------------- //
 
@@ -19,6 +19,10 @@ struct fs_manager fsm_default;
 bool fs_load(struct fs_manager* fsm, struct partition* part);
 
 void fs_make(struct fs_manager* fsm, struct partition* part);
+
+void fs_inode_sync(struct fs_manager* fsm, struct inode_elem* inode_elem);
+
+struct inode_elem* fs_inode_open(struct fs_manager* fsm, uint32_t inode_no);
 
 // Public methods
 
@@ -78,6 +82,70 @@ void fs_make(struct fs_manager* fsm, struct partition* part) {
   return;
 }
 
+void fs_inode_sync(struct fs_manager* fsm, struct inode_elem* inode_elem) {
+  struct inode* inode = &inode_elem->inode;
+
+  // locale the block where the inode lives
+  uint32_t block_no = inode->no / FS_INODE_TABLES_BLOCK_CNT;
+  uint32_t block_off = inode->no % FS_INODE_TABLES_BLOCK_CNT;
+  uint32_t lba = fsm->sblock->inode_table_lba + block_no * FS_BLOCK_SECS;
+  ASSERT(lba < fsm->sblock->inode_table_lba + fsm->sblock->inode_btmp_secs);
+
+  // load block
+  // FIXME: this malloc may allocate memory in user space
+  struct inode* inode_table = (struct inode*)sys_malloc(FS_BLOCK_SIZE);
+  disk_read(fsm->part->hd, inode_table, lba, FS_BLOCK_SECS);
+
+  // copy new inode
+  struct inode* inode_in_disk = &inode_table[block_off];
+  memcpy(inode_in_disk, inode, sizeof(struct inode));
+
+  // flush new inode
+  disk_write(fsm->part->hd, inode_table, lba, FS_BLOCK_SECS);
+  sys_free(inode_table);
+}
+
+struct inode_elem* fs_inode_open(struct fs_manager* fsm, uint32_t inode_no) {
+  struct list_elem* elem = fsm->inode_list.head.next;
+  struct inode_elem* inode_elem;
+
+  while(elem != &fsm->inode_list.tail) {
+    inode_elem = elem2entry(struct inode_elem, inode_tag, elem);
+    if (inode_elem->inode.no == inode_no) {
+      return inode_elem;
+    }
+    elem = elem->next;
+  }
+
+  // NOTE: Change current page dir to malloc memory in kernel space
+  struct task_struct* cur = running_thread();
+  uint32_t* cur_pgdir = cur->pgdir;
+  cur->pgdir = NULL;
+  inode_elem = (struct inode_elem*)sys_malloc(sizeof(struct inode_elem));
+  cur->pgdir = cur_pgdir;
+
+  // locale the block where the inode lives
+  uint32_t block_no = inode_no / FS_INODE_TABLES_BLOCK_CNT;
+  uint32_t block_off = inode_no % FS_INODE_TABLES_BLOCK_CNT;
+  uint32_t lba = fsm->sblock->inode_table_lba + block_no * FS_BLOCK_SECS;
+  ASSERT(lba < fsm->sblock->inode_table_lba + fsm->sblock->inode_btmp_secs);
+
+  // load block
+  // FIXME: this malloc may allocate memory in user space
+  struct inode* inode_table = (struct inode*)sys_malloc(FS_BLOCK_SIZE);
+  disk_read(fsm->part->hd, inode_table, lba, FS_BLOCK_SECS);
+
+  // copy to memory
+  struct inode* inode = &inode_elem->inode;
+  struct inode* inode_in_disk = &inode_table[block_off];
+  memcpy(inode, inode_in_disk, sizeof(struct inode));
+
+  list_push(&fsm->inode_list, &inode_elem->inode_tag);
+
+  sys_free(inode_table);
+  return inode_elem;
+}
+
 void fs_init(void) {
   printf("fs_init start\n");
   ASSERT(!list_empty(&disk_partitions));
@@ -88,6 +156,8 @@ void fs_init(void) {
     printf("  make default file system\n");
     fs_make(&fsm_default, part);
   }
+  // FIXME: use another method to do load or make, then init inode list
+  list_init(&fsm_default.inode_list);
   printf("  mount %s as default file system\n", fsm_default.part->name);
   printf("fs_init done\n");
 }

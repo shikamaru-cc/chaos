@@ -41,7 +41,6 @@ struct super_block {
 struct inode {
   uint32_t no; // inode no.
   uint32_t size; // dir: entry cnt, normal: file size
-  uint32_t open_cnt;
   uint32_t sectors[13]; // 0 - 11: data sector index, 12: extend block index
 };
 
@@ -50,9 +49,15 @@ struct inode {
 #define FS_INODE_TABLE_SIZE         (sizeof(struct inode))
 #define FS_INODE_TABLES_BLOCK_CNT   (FS_BLOCK_SIZE / FS_INODE_TABLE_SIZE)
 
+struct inode_elem {
+  struct inode inode;
+  struct list_elem inode_tag;
+};
+
 struct fs_manager {
   struct partition* part;
   struct super_block* sblock;
+  struct list inode_list; // record opened inode
 };
 
 void fs_init(void);
