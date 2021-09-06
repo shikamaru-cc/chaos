@@ -24,6 +24,8 @@ void fs_inode_sync(struct fs_manager* fsm, struct inode_elem* inode_elem);
 
 struct inode_elem* fs_inode_open(struct fs_manager* fsm, uint32_t inode_no);
 
+void fs_inode_close(struct inode_elem* inode_elem);
+
 // Public methods
 
 void fs_init(void);
@@ -112,6 +114,7 @@ struct inode_elem* fs_inode_open(struct fs_manager* fsm, uint32_t inode_no) {
   while(elem != &fsm->inode_list.tail) {
     inode_elem = elem2entry(struct inode_elem, inode_tag, elem);
     if (inode_elem->inode.no == inode_no) {
+      inode_elem->ref++;
       return inode_elem;
     }
     elem = elem->next;
@@ -144,6 +147,19 @@ struct inode_elem* fs_inode_open(struct fs_manager* fsm, uint32_t inode_no) {
 
   sys_free(inode_table);
   return inode_elem;
+}
+
+void fs_inode_close(struct inode_elem* inode_elem) {
+  inode_elem->ref--;
+  if (inode_elem->ref == 0) {
+    list_remove(inode_elem);
+    // NOTE: Change current page dir to free memory in kernel space
+    struct task_struct* cur = running_thread();
+    uint32_t* cur_pgdir = cur->pgdir;
+    cur->pgdir = NULL;
+    sys_free(inode_elem);
+    cur->pgdir = cur_pgdir;
+  }
 }
 
 void fs_init(void) {

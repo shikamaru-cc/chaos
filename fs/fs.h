@@ -52,12 +52,25 @@ struct inode {
 struct inode_elem {
   struct inode inode;
   struct list_elem inode_tag;
+  int ref; // How many files reference this inode
 };
 
 struct fs_manager {
   struct partition* part;
   struct super_block* sblock;
   struct list inode_list; // record opened inode
+};
+
+#define FS_MAX_FILENAME 50
+struct dir_entry {
+  char filename[FS_MAX_FILENAME];
+  uint32_t inode_no;
+};
+
+struct file {
+  int fd_flag;
+  uint32_t fd_pos;
+  struct inode_elem* inode_elem;
 };
 
 void fs_init(void);
