@@ -34,6 +34,8 @@ void fs_init(void);
 
 bool fs_load(struct fs_manager* fsm, struct partition* part) {
   ASSERT(part != NULL)
+  fsm->part = part;
+
   struct super_block* sblock;
   sblock = (struct super_block*)sys_malloc(sizeof(struct super_block));
 
@@ -45,13 +47,34 @@ bool fs_load(struct fs_manager* fsm, struct partition* part) {
     return false;
   }
 
-  fsm->part = part;
   fsm->sblock = sblock;
+
+  // Init opened inode list
+  list_init(&fsm->inode_list);
+
+  // Load inode bitmap
+  struct bitmap* inode_btmp_ptr = &fsm->inode_btmp;
+  inode_btmp_ptr->btmp_bytes_len = sblock->inode_btmp_secs * 512;
+  inode_btmp_ptr->bits = (uint8_t*)sys_malloc(inode_btmp_ptr->btmp_bytes_len);
+  disk_read(part->hd, inode_btmp_ptr->bits, sblock->inode_btmp_lba, sblock->inode_btmp_secs);
+
+  // Load block bitmap
+  struct bitmap* block_btmp_ptr = &fsm->block_btmp;
+  block_btmp_ptr->btmp_bytes_len = sblock->block_btmp_secs * 512;
+  block_btmp_ptr->bits = (uint8_t*)sys_malloc(block_btmp_ptr->btmp_bytes_len);
+  disk_read(part->hd, block_btmp_ptr->bits, sblock->block_btmp_lba, sblock->block_btmp_secs);
+
   return true;
 }
 
 void fs_make(struct fs_manager* fsm, struct partition* part) {
+  ASSERT(part != NULL)
+  fsm->part = part;
+
+  // Init super block
   struct super_block* sblock;
+  // FIXME: Currently we use fs_make before we get into user mode, it is better
+  // to use a new malloc call for kernel mode
   sblock = (struct super_block*)sys_malloc(sizeof(struct super_block));
 
   sblock->magic = FS_SUPER_BLOCK_MAGIC;
@@ -78,8 +101,45 @@ void fs_make(struct fs_manager* fsm, struct partition* part) {
   // flush super block
   disk_write(part->hd, sblock, part->lba_start + 1, 1);
 
-  fsm->part = part;
   fsm->sblock = sblock;
+
+  // Init opened inode list
+  list_init(&fsm->inode_list);
+
+  // Init inode bitmap
+  struct bitmap* inode_btmp_ptr = &fsm->inode_btmp;
+  inode_btmp_ptr->btmp_bytes_len = sblock->inode_btmp_secs * 512;
+  inode_btmp_ptr->bits = (uint8_t*)sys_malloc(inode_btmp_ptr->btmp_bytes_len);
+  bitmap_init(inode_btmp_ptr);
+
+  // set root inode no
+  bitmap_set(inode_btmp_ptr, sblock->root_inode_no);
+
+  // flush all inode bitmap
+  disk_write(part->hd, inode_btmp_ptr->bits, sblock->inode_btmp_lba, sblock->inode_btmp_secs);
+
+  // Init block bitmap
+  struct bitmap* block_btmp_ptr = &fsm->block_btmp;
+  block_btmp_ptr->btmp_bytes_len = sblock->block_btmp_secs * 512;
+  block_btmp_ptr->bits = (uint8_t*)sys_malloc(block_btmp_ptr->btmp_bytes_len);
+  bitmap_init(block_btmp_ptr);
+
+  // Set used block
+  int i, used_block;
+  used_block = sblock->data_lba - sblock->part_lba_start;
+  for (i = 0; i < used_block; i++) {
+    bitmap_set(block_btmp_ptr, i);
+  }
+
+  // Our block bitmap size may be larger than actual block count,
+  // so we need to set the tail non-exist block index to be used.
+  uint32_t block_btmp_size = block_btmp_ptr->btmp_bytes_len * 8;
+  for (i = sblock->sec_cnt; i < block_btmp_size; i++) {
+    bitmap_set(block_btmp_ptr, i);
+  }
+
+  // flush all block bitmap
+  disk_write(part->hd, block_btmp_ptr->bits, sblock->block_btmp_lba, sblock->block_btmp_secs);
 
   return;
 }
@@ -172,8 +232,6 @@ void fs_init(void) {
     printf("  make default file system\n");
     fs_make(&fsm_default, part);
   }
-  // FIXME: use another method to do load or make, then init inode list
-  list_init(&fsm_default.inode_list);
   printf("  mount %s as default file system\n", fsm_default.part->name);
   printf("fs_init done\n");
 }

@@ -60,7 +60,8 @@ struct thread_stack {
 
 typedef int pid_t;
 
-#define MAX_PROC_OPEN_FD 50
+// FIXME: If the MAX_PROC_OPEN_FD is too large, stack_magic would be break
+#define MAX_PROC_OPEN_FD 20
 
 // process control block
 struct task_struct {

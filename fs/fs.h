@@ -5,6 +5,7 @@
 #include "stdbool.h"
 #include "disk.h"
 #include "kernel/list.h"
+#include "kernel/bitmap.h"
 
 // Layout of a disk partition:
 // ----------------------------------------------------------------------------
@@ -59,6 +60,8 @@ struct fs_manager {
   struct partition* part;
   struct super_block* sblock;
   struct list inode_list; // record opened inode
+  struct bitmap inode_btmp;
+  struct bitmap block_btmp;
 };
 
 #define FS_MAX_FILENAME 50
