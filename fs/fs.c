@@ -1,5 +1,7 @@
 #include "fs.h"
 #include "debug.h"
+#include "disk.h"
+#include "kernel/bitmap.h"
 #include "stdio.h"
 #include "string.h"
 #include "stdnull.h"
@@ -7,12 +9,9 @@
 #include "global.h"
 #include "thread.h"
 #include "memory.h"
+#include <stdint.h>
 
 // -------------------------- Struct fs_manager ----------------------------- //
-
-// Private variable
-
-struct fs_manager fsm_default;
 
 // Private methods
 
@@ -25,6 +24,18 @@ void fs_inode_sync(struct fs_manager* fsm, struct inode_elem* inode_elem);
 struct inode_elem* fs_inode_open(struct fs_manager* fsm, uint32_t inode_no);
 
 void fs_inode_close(struct inode_elem* inode_elem);
+
+int fs_alloc_inode_no(struct fs_manager* fsm);
+
+void fs_free_inode_no(struct fs_manager* fsm, int inode_no);
+
+void fs_sync_inode_no(struct fs_manager* fsm, int inode_no);
+
+int fs_alloc_block_no(struct fs_manager* fsm);
+
+void fs_free_block_no(struct fs_manager* fsm, int block_no);
+
+void fs_sync_block_no(struct fs_manager* fsm, int block_no);
 
 // Public methods
 
@@ -212,7 +223,7 @@ struct inode_elem* fs_inode_open(struct fs_manager* fsm, uint32_t inode_no) {
 void fs_inode_close(struct inode_elem* inode_elem) {
   inode_elem->ref--;
   if (inode_elem->ref == 0) {
-    list_remove(inode_elem);
+    list_remove(&inode_elem->inode_tag);
     // NOTE: Change current page dir to free memory in kernel space
     struct task_struct* cur = running_thread();
     uint32_t* cur_pgdir = cur->pgdir;
@@ -220,6 +231,72 @@ void fs_inode_close(struct inode_elem* inode_elem) {
     sys_free(inode_elem);
     cur->pgdir = cur_pgdir;
   }
+}
+
+// NOTE: fs_alloc_inode_no and fs_free_inode_no only modify inode bitmap in
+// memory with no operation with disk.
+int fs_alloc_inode_no(struct fs_manager* fsm) {
+  int free_inode_no;
+  struct bitmap* inode_btmp_ptr = &fsm->inode_btmp;
+
+  free_inode_no = bitmap_scan(inode_btmp_ptr, 1);
+  if (free_inode_no < 0) {
+    return -1;
+  }
+
+  bitmap_set(inode_btmp_ptr, free_inode_no);
+  return free_inode_no;
+}
+
+void fs_free_inode_no(struct fs_manager* fsm, int inode_no) {
+  // Not allow inode_no == 0, which is the root inode no
+  ASSERT(inode_no > 0);
+  struct bitmap* inode_btmp_ptr = &fsm->inode_btmp;
+  bitmap_unset(inode_btmp_ptr, inode_no);
+}
+
+void fs_sync_inode_no(struct fs_manager* fsm, int inode_no) {
+  struct bitmap* inode_btmp_ptr = &fsm->inode_btmp;
+  // which block contains this inode no
+  int block_off = inode_no / FS_BLOCK_BITS;
+  uint32_t btmp_lba = fsm->sblock->inode_btmp_lba + block_off;
+  // find corresponding bits block in memory
+  uint32_t bytes_off = block_off * FS_BLOCK_SIZE;
+  ASSERT(bytes_off < inode_btmp_ptr->btmp_bytes_len);
+  void* bits_start = inode_btmp_ptr->bits + bytes_off;
+  // sync
+  disk_write(fsm->part->hd, bits_start, btmp_lba, 1);
+}
+
+int fs_alloc_block_no(struct fs_manager* fsm) {
+  int free_block_no;
+  struct bitmap* block_btmp_ptr = &fsm->block_btmp;
+
+  free_block_no = bitmap_scan(block_btmp_ptr, 1);
+  if (free_block_no < 0) {
+    return -1;
+  }
+
+  bitmap_set(block_btmp_ptr, free_block_no);
+  return free_block_no;
+}
+
+void fs_free_block_no(struct fs_manager* fsm, int block_no) {
+  struct bitmap* block_btmp_ptr = &fsm->block_btmp;
+  bitmap_unset(block_btmp_ptr, block_no);
+}
+
+void fs_sync_block_no(struct fs_manager* fsm, int block_no) {
+  struct bitmap* block_btmp_ptr = &fsm->block_btmp;
+  // which block contains this block no
+  int block_off = block_no / FS_BLOCK_BITS;
+  uint32_t btmp_lba = fsm->sblock->block_btmp_lba + block_off;
+  // find corresponding bits block in memory
+  uint32_t bytes_off = block_off * FS_BLOCK_SIZE;
+  ASSERT(bytes_off < block_btmp_ptr->btmp_bytes_len);
+  void* bits_start = block_btmp_ptr->bits + bytes_off;
+  // sync
+  disk_write(fsm->part->hd, bits_start, btmp_lba, 1);
 }
 
 void fs_init(void) {
@@ -232,6 +309,19 @@ void fs_init(void) {
     printf("  make default file system\n");
     fs_make(&fsm_default, part);
   }
+
+  // FIXME: Test only
+  struct fs_manager* fsm = &fsm_default;
+  int i;
+  int block_no;
+  for (i = 1; i < 10; i++) {
+    block_no = fs_alloc_block_no(fsm);
+    if (block_no < 0) {
+      PANIC("no free inode no");
+    }
+    fs_sync_block_no(fsm, block_no);
+  }
+
   printf("  mount %s as default file system\n", fsm_default.part->name);
   printf("fs_init done\n");
 }

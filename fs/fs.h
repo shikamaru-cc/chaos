@@ -64,6 +64,9 @@ struct fs_manager {
   struct bitmap block_btmp;
 };
 
+// default file system manager
+struct fs_manager fsm_default;
+
 #define FS_MAX_FILENAME 50
 struct dir_entry {
   char filename[FS_MAX_FILENAME];
