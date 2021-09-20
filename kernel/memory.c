@@ -550,6 +550,25 @@ void sys_free(void* vaddr) {
   return;
 }
 
+// kmalloc allocate virtual address in kernel space
+void* kmalloc(uint32_t size) {
+  void* kva;
+  struct task_struct* cur = running_thread();
+  uint32_t* cur_pgdir = cur->pgdir;
+  cur->pgdir = NULL;
+  kva = sys_malloc(size);
+  cur->pgdir = cur_pgdir;
+  return kva
+}
+
+void kfree(void* kva) {
+  struct task_struct* cur = running_thread();
+  uint32_t* cur_pgdir = cur->pgdir;
+  cur->pgdir = NULL;
+  sys_free(kva);
+  cur->pgdir = cur_pgdir;
+}
+
 void mem_block_descs_init(struct mem_block_desc descs[MEM_BLOCK_DESC_CNT]) {
   // minimum size is 16 bytes
   uint32_t size = 16;

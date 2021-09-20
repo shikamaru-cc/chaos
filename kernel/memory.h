@@ -61,5 +61,7 @@ struct mem_block_desc {
 void mem_block_descs_init(struct mem_block_desc descs[MEM_BLOCK_DESC_CNT]);
 void* sys_malloc(uint32_t size);
 void sys_free(void* va);
+void* kmalloc(uint32_t size);
+void kfree(void* kva);
 
 #endif
