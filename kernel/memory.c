@@ -558,7 +558,7 @@ void* kmalloc(uint32_t size) {
   cur->pgdir = NULL;
   kva = sys_malloc(size);
   cur->pgdir = cur_pgdir;
-  return kva
+  return kva;
 }
 
 void kfree(void* kva) {
