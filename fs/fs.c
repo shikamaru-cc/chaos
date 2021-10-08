@@ -50,11 +50,19 @@ void inode_close(struct inode_elem* inode_elem);
 
 uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx);
 
+uint32_t inode_idx_to_lba(struct inode_elem* inode_elem, uint32_t sec_idx);
+
+int inode_read(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf);
+
+int inode_write(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf);
+
 // ------------------------------ Struct dir -------------------------------- //
 
 void dir_open_root(struct fs_manager* fsm);
 
 int dir_append_entry(struct dir* parent, struct dir_entry* ent);
+
+int dir_search(struct dir* parent, char* filename, struct dir_entry* ent);
 
 // --------------------------- Implementation ------------------------------- //
 
@@ -267,13 +275,22 @@ void fs_init(void) {
 
   // FIXME: Test only
   struct dir_entry de;
-  int i;
-  for (i = 0; i < 10000; i++) {
-    strcpy(de.filename, "fooooooo");
-    de.f_type = TYPE_NORMAL;
-    de.inode_no = fs_alloc_inode_no(&fsm_default);
-    dir_append_entry(&dir_root, &de);
-  }
+
+  strcpy(de.filename, "chloe");
+  de.f_type = TYPE_NORMAL;
+  de.inode_no = fs_alloc_inode_no(&fsm_default);
+  dir_append_entry(&dir_root, &de);
+
+  strcpy(de.filename, "shikamaru");
+  de.f_type = TYPE_NORMAL;
+  de.inode_no = fs_alloc_inode_no(&fsm_default);
+  dir_append_entry(&dir_root, &de);
+
+  struct dir_entry de2;
+  dir_search(&dir_root, "shikamaru", &de2);
+  printf("filename: %s, type: %d, inode_no: %d", de2.filename, de2.f_type, de2.inode_no);
+  
+  // FIXME: end test code
 
   printf("  mount %s as default file system\n", fsm_default.part->name);
   printf("fs_init done\n");
@@ -407,9 +424,10 @@ uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx
 
   // locate at extend sectors
 
-  uint32_t ext_blk_lba;
-
+  bool exist = true;
+  // alloc new block if extend block not exist
   if (inode->sectors[FS_INODE_EXTEND_BLOCK_INDEX] == 0) {
+    exist  = false;
     int free_block_lba = fs_alloc_block_no(inode_elem->fsm);
     if (free_block_lba < 0) {
       return 0;
@@ -419,14 +437,18 @@ uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx
     inode_sync(inode_elem);
   }
 
-  ext_blk_lba = inode->sectors[FS_INODE_EXTEND_BLOCK_INDEX];
-
   // load extend sector
-
+  uint32_t ext_blk_lba = inode->sectors[FS_INODE_EXTEND_BLOCK_INDEX];
   uint32_t* ext_sec = (uint32_t*)sys_malloc(FS_BLOCK_SIZE);
   struct fs_manager* fsm = inode_elem->fsm;
   uint32_t real_lba = fsm->part->lba_start + ext_blk_lba;
-  disk_read(fsm->part->hd, ext_sec, real_lba, FS_BLOCK_SECS);
+
+  // init buf if extend block is not exist before
+  if (!exist) {
+    memset(ext_sec, 0, FS_BLOCK_SIZE);
+  } else {
+    disk_read(fsm->part->hd, ext_sec, real_lba, FS_BLOCK_SECS);
+  }
 
   uint32_t ext_sec_idx = sec_idx - FS_INODE_EXTEND_BLOCK_INDEX;
   if (ext_sec[ext_sec_idx] == 0) {
@@ -444,6 +466,54 @@ uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx
   uint32_t ret = ext_sec[ext_sec_idx];
   sys_free(ext_sec);
   return ret;
+}
+
+uint32_t inode_idx_to_lba(struct inode_elem* inode_elem, uint32_t sec_idx) {
+  if (sec_idx < FS_INODE_EXTEND_BLOCK_INDEX) {
+    return inode_elem->inode.sectors[sec_idx];
+  }
+
+  // load from extend block
+  uint32_t ext_blk_lba = inode_elem->inode.sectors[FS_INODE_EXTEND_BLOCK_INDEX];
+  if (ext_blk_lba == 0) {
+    return 0;
+  }
+
+  uint32_t* ext_sec = sys_malloc(FS_BLOCK_SIZE);
+  if (ext_sec == NULL) {
+    return 0;
+  }
+
+  struct fs_manager* fsm = inode_elem->fsm;
+  uint32_t real_lba = fsm->part->lba_start + ext_blk_lba;
+
+  disk_read(fsm->part->hd, ext_sec, real_lba, FS_BLOCK_SECS);
+
+  uint32_t ret = ext_sec[sec_idx - FS_INODE_EXTEND_BLOCK_INDEX];
+  sys_free(ext_sec);
+  return ret;
+}
+
+int inode_read(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf) {
+  uint32_t lba = inode_idx_to_lba(inode_elem, sec_idx);
+  if (lba == 0) {
+    return -1;
+  }
+  struct fs_manager* fsm = inode_elem->fsm;
+  uint32_t real_lba = fsm->part->lba_start + lba;
+  disk_read(fsm->part->hd, buf, real_lba, FS_BLOCK_SECS);
+  return 0;
+}
+
+int inode_write(struct inode_elem *inode_elem, uint32_t sec_idx, char *buf) {
+  uint32_t lba = inode_idx_to_lba(inode_elem, sec_idx);
+  if (lba == 0) {
+    return -1;
+  }
+  struct fs_manager* fsm = inode_elem->fsm;
+  uint32_t real_lba = fsm->part->lba_start + lba;
+  disk_write(fsm->part->hd, buf, real_lba, FS_BLOCK_SECS);
+  return 0;
 }
 
 void dir_open_root(struct fs_manager* fsm) {
@@ -483,9 +553,46 @@ int dir_append_entry(struct dir* parent, struct dir_entry* ent) {
   return 1;
 }
 
-/*
-void test_dir_print_entry(struct dir* parent) {
-  int i;
-  for (i = 0; i < 
+int dir_search(struct dir* parent, char* filename, struct dir_entry* ent) {
+  if (strlen(filename) == 0) {
+    return -1;
+  }
+
+  struct dir_entry* dents = (struct dir_entry*)sys_malloc(FS_BLOCK_SIZE);
+  if (dents == NULL) {
+    return -1;
+  }
+
+  struct inode_elem* p_inode = parent->inode_elem;
+  uint32_t cnt = 1;
+  uint32_t i;
+  for (i = 0; i < FS_INODE_MAX_SECTORS; i++) {
+    if (inode_read(p_inode, i, (char*)dents) < 0) {
+      goto fail;
+    }
+
+    uint32_t j;
+    for (j = 0; j < DIR_ENTRY_PER_BLOCK; j++) {
+      if (cnt > p_inode->inode.size) {
+	goto fail;
+      }
+
+      if (strcmp(dents[j].filename, filename) == 0) {
+	strcpy(ent->filename, dents[j].filename);
+	ent->f_type = dents[j].f_type;
+	ent->inode_no = dents[j].inode_no;
+	goto success;
+      }
+
+      cnt++;
+    }
+  }
+
+ fail:
+  sys_free(dents);
+  return -1;
+
+ success:
+  sys_free(dents);
+  return 0;
 }
-*/
