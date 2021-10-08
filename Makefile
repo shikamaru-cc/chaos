@@ -71,13 +71,15 @@ kernel/kernel.bin: $(OBJS)
 	$(LD) $(LDFLAGS) $^ -o $@
 
 BXIMAGE=build/bochs/bximage
-WORKSPACE/disk.img:
+WORKSPACE/init.mk:
 	mkdir -p WORKSPACE
 	$(BXIMAGE) -mode=create -hd=10M -q ./WORKSPACE/disk.img
 	$(BXIMAGE) -mode=create -hd=80M -q ./WORKSPACE/hd80M.img
+	echo "I\n./tools/hd80m.sfdisk\nw" | fdisk ./WORKSPACE/hd80M.img
+	touch ./WORKSPACE/init.mk
 
 .PHONY: build
-build build-debug: build/init.mk $(BINS) WORKSPACE/disk.img
+build build-debug: build/init.mk $(BINS) WORKSPACE/init.mk
 	@echo "build mbr"
 	dd if=./boot/mbr.bin of=./WORKSPACE/disk.img bs=512 count=1 conv=notrunc
 	@echo "build loader"
