@@ -527,7 +527,7 @@ int dir_append_entry(struct dir* parent, struct dir_entry* ent) {
     return -1;
   }
 
-  uint32_t pos = ++parent_inode->size;
+  uint32_t pos = parent_inode->size;
 
   int sec_idx = pos / DIR_ENTRY_PER_BLOCK;
   int sec_off = pos % DIR_ENTRY_PER_BLOCK;
@@ -546,6 +546,7 @@ int dir_append_entry(struct dir* parent, struct dir_entry* ent) {
   memcpy(&dents[sec_off], ent, sizeof(struct dir_entry));
 
   // sync inode table and data
+  parent_inode->size++;
   inode_sync(parent->inode_elem);
   disk_write(fsm->part->hd, dents, real_lba, FS_BLOCK_SECS);
 
