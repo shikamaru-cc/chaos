@@ -38,7 +38,7 @@ struct inode {
 
 struct inode_elem {
   struct inode inode;
-  struct partition_manager* fsm;
+  struct partition_manager* partmgr;
   struct list_elem inode_tag;
   int32_t ref; // How many files reference this inode
 };

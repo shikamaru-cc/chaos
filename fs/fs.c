@@ -178,7 +178,7 @@ void fs_make(struct partition_manager* fsm, struct partition* part) {
 
   // init root dir
   struct inode_elem root_inode_elem;
-  root_inode_elem.fsm = fsm;
+  root_inode_elem.partmgr = fsm;
   struct inode* root_inode = &root_inode_elem.inode;
   root_inode->no = sblock->root_inode_no;
   root_inode->size = 0;
@@ -298,7 +298,7 @@ void fs_init(void) {
 
 void inode_sync(struct inode_elem* inode_elem) {
   struct inode* inode = &inode_elem->inode;
-  struct partition_manager* fsm = inode_elem->fsm;
+  struct partition_manager* fsm = inode_elem->partmgr;
 
   // locale the block where the inode lives
   uint32_t block_no = inode->no / FS_INODE_TABLES_BLOCK_CNT;
@@ -343,7 +343,7 @@ struct inode_elem* inode_create(struct partition_manager *fsm) {
   inode_sync(inode_elem);
 
   // other fileds
-  inode_elem->fsm = fsm;
+  inode_elem->partmgr = fsm;
   list_append(&fsm->inode_list, &inode_elem->inode_tag);
   inode_elem->ref = 1;
 
@@ -383,7 +383,7 @@ struct inode_elem* inode_open(struct partition_manager* fsm, uint32_t inode_no) 
   struct inode* inode_in_disk = &inode_table[block_off];
   memcpy(inode, inode_in_disk, sizeof(struct inode));
   // init other fileds
-  inode_elem->fsm = fsm;
+  inode_elem->partmgr = fsm;
   list_push(&fsm->inode_list, &inode_elem->inode_tag);
   inode_elem->ref = 1;
 
@@ -412,7 +412,7 @@ uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx
     }
 
     // map new block
-    int32_t free_block_lba = fs_alloc_block_no(inode_elem->fsm);
+    int32_t free_block_lba = fs_alloc_block_no(inode_elem->partmgr);
     if (free_block_lba < 0) {
       return 0;
     }
@@ -428,7 +428,7 @@ uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx
   // alloc new block if extend block not exist
   if (inode->sectors[FS_INODE_EXTEND_BLOCK_INDEX] == 0) {
     exist  = false;
-    int32_t free_block_lba = fs_alloc_block_no(inode_elem->fsm);
+    int32_t free_block_lba = fs_alloc_block_no(inode_elem->partmgr);
     if (free_block_lba < 0) {
       return 0;
     }
@@ -440,7 +440,7 @@ uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx
   // load extend sector
   uint32_t ext_blk_lba = inode->sectors[FS_INODE_EXTEND_BLOCK_INDEX];
   uint32_t* ext_sec = (uint32_t*)sys_malloc(BLOCK_SIZE);
-  struct partition_manager* fsm = inode_elem->fsm;
+  struct partition_manager* fsm = inode_elem->partmgr;
   uint32_t real_lba = fsm->part->lba_start + ext_blk_lba;
 
   // init buf if extend block is not exist before
@@ -452,7 +452,7 @@ uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx
 
   uint32_t ext_sec_idx = sec_idx - FS_INODE_EXTEND_BLOCK_INDEX;
   if (ext_sec[ext_sec_idx] == 0) {
-    int32_t free_block_lba = fs_alloc_block_no(inode_elem->fsm);
+    int32_t free_block_lba = fs_alloc_block_no(inode_elem->partmgr);
 
     if (free_block_lba < 0) {
       return 0;
@@ -484,7 +484,7 @@ uint32_t inode_idx_to_lba(struct inode_elem* inode_elem, uint32_t sec_idx) {
     return 0;
   }
 
-  struct partition_manager* fsm = inode_elem->fsm;
+  struct partition_manager* fsm = inode_elem->partmgr;
   uint32_t real_lba = fsm->part->lba_start + ext_blk_lba;
 
   disk_read(fsm->part->hd, ext_sec, real_lba, BLOCK_SECS);
@@ -499,7 +499,7 @@ int32_t inode_read(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf) {
   if (lba == 0) {
     return -1;
   }
-  struct partition_manager* fsm = inode_elem->fsm;
+  struct partition_manager* fsm = inode_elem->partmgr;
   uint32_t real_lba = fsm->part->lba_start + lba;
   disk_read(fsm->part->hd, buf, real_lba, BLOCK_SECS);
   return 0;
@@ -510,7 +510,7 @@ int32_t inode_write(struct inode_elem *inode_elem, uint32_t sec_idx, char *buf) 
   if (lba == 0) {
     return -1;
   }
-  struct partition_manager* fsm = inode_elem->fsm;
+  struct partition_manager* fsm = inode_elem->partmgr;
   uint32_t real_lba = fsm->part->lba_start + lba;
   disk_write(fsm->part->hd, buf, real_lba, BLOCK_SECS);
   return 0;
@@ -539,7 +539,7 @@ int32_t dir_append_entry(struct dir* parent, struct dir_entry* ent) {
 
   struct dir_entry* dents = (struct dir_entry*)sys_malloc(BLOCK_SIZE);
 
-  struct partition_manager* fsm = parent->inode_elem->fsm;
+  struct partition_manager* fsm = parent->inode_elem->partmgr;
   uint32_t real_lba = block_lba + fsm->part->lba_start;
   disk_read(fsm->part->hd, dents, real_lba, BLOCK_SECS);
 
