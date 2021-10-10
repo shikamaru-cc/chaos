@@ -12,27 +12,27 @@
 #include "memory.h"
 #include <stdint.h>
 
-// -------------------------- Struct fs_manager ----------------------------- //
+// -------------------------- Struct partition_manager ----------------------------- //
 
 // Private methods
 
-bool fs_load(struct fs_manager* fsm, struct partition* part);
+bool fs_load(struct partition_manager* fsm, struct partition* part);
 
-void fs_make(struct fs_manager* fsm, struct partition* part);
+void fs_make(struct partition_manager* fsm, struct partition* part);
 
 void fs_inode_close(struct inode_elem* inode_elem);
 
-int fs_alloc_inode_no(struct fs_manager* fsm);
+int fs_alloc_inode_no(struct partition_manager* fsm);
 
-void fs_free_inode_no(struct fs_manager* fsm, int inode_no);
+void fs_free_inode_no(struct partition_manager* fsm, int inode_no);
 
-void fs_sync_inode_no(struct fs_manager* fsm, int inode_no);
+void fs_sync_inode_no(struct partition_manager* fsm, int inode_no);
 
-int fs_alloc_block_no(struct fs_manager* fsm);
+int fs_alloc_block_no(struct partition_manager* fsm);
 
-void fs_free_block_no(struct fs_manager* fsm, int block_no);
+void fs_free_block_no(struct partition_manager* fsm, int block_no);
 
-void fs_sync_block_no(struct fs_manager* fsm, int block_no);
+void fs_sync_block_no(struct partition_manager* fsm, int block_no);
 
 // Public methods
 
@@ -42,9 +42,9 @@ void fs_init(void);
 
 void inode_sync(struct inode_elem* inode_elem);
 
-struct inode_elem* inode_create(struct fs_manager* fsm);
+struct inode_elem* inode_create(struct partition_manager* fsm);
 
-struct inode_elem* inode_open(struct fs_manager* fsm, uint32_t inode_no);
+struct inode_elem* inode_open(struct partition_manager* fsm, uint32_t inode_no);
 
 void inode_close(struct inode_elem* inode_elem);
 
@@ -58,7 +58,7 @@ int inode_write(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf);
 
 // ------------------------------ Struct dir -------------------------------- //
 
-void dir_open_root(struct fs_manager* fsm);
+void dir_open_root(struct partition_manager* fsm);
 
 int dir_append_entry(struct dir* parent, struct dir_entry* ent);
 
@@ -66,7 +66,7 @@ int dir_search(struct dir* parent, char* filename, struct dir_entry* ent);
 
 // --------------------------- Implementation ------------------------------- //
 
-bool fs_load(struct fs_manager* fsm, struct partition* part) {
+bool fs_load(struct partition_manager* fsm, struct partition* part) {
   ASSERT(part != NULL)
   fsm->part = part;
 
@@ -102,7 +102,7 @@ bool fs_load(struct fs_manager* fsm, struct partition* part) {
 }
 
 // FIXME: check whether malloc in fs_make use kmalloc
-void fs_make(struct fs_manager* fsm, struct partition* part) {
+void fs_make(struct partition_manager* fsm, struct partition* part) {
   ASSERT(part != NULL)
   fsm->part = part;
 
@@ -194,7 +194,7 @@ void fs_make(struct fs_manager* fsm, struct partition* part) {
 
 // NOTE: fs_alloc_inode_no and fs_free_inode_no only modify inode bitmap in
 // memory with no operation with disk.
-int fs_alloc_inode_no(struct fs_manager* fsm) {
+int fs_alloc_inode_no(struct partition_manager* fsm) {
   int free_inode_no;
   struct bitmap* inode_btmp_ptr = &fsm->inode_btmp;
 
@@ -207,14 +207,14 @@ int fs_alloc_inode_no(struct fs_manager* fsm) {
   return free_inode_no;
 }
 
-void fs_free_inode_no(struct fs_manager* fsm, int inode_no) {
+void fs_free_inode_no(struct partition_manager* fsm, int inode_no) {
   // Not allow inode_no == 0, which is the root inode no
   ASSERT(inode_no > 0);
   struct bitmap* inode_btmp_ptr = &fsm->inode_btmp;
   bitmap_unset(inode_btmp_ptr, inode_no);
 }
 
-void fs_sync_inode_no(struct fs_manager* fsm, int inode_no) {
+void fs_sync_inode_no(struct partition_manager* fsm, int inode_no) {
   struct bitmap* inode_btmp_ptr = &fsm->inode_btmp;
   // which block contains this inode no
   int block_off = inode_no / BLOCK_BITS;
@@ -227,7 +227,7 @@ void fs_sync_inode_no(struct fs_manager* fsm, int inode_no) {
   disk_write(fsm->part->hd, bits_start, btmp_lba, 1);
 }
 
-int fs_alloc_block_no(struct fs_manager* fsm) {
+int fs_alloc_block_no(struct partition_manager* fsm) {
   int free_block_no;
   struct bitmap* block_btmp_ptr = &fsm->block_btmp;
 
@@ -241,13 +241,13 @@ int fs_alloc_block_no(struct fs_manager* fsm) {
   return free_block_no;
 }
 
-void fs_free_block_no(struct fs_manager* fsm, int block_no) {
+void fs_free_block_no(struct partition_manager* fsm, int block_no) {
   struct bitmap* block_btmp_ptr = &fsm->block_btmp;
   bitmap_unset(block_btmp_ptr, block_no);
   fs_sync_inode_no(fsm, block_no);
 }
 
-void fs_sync_block_no(struct fs_manager* fsm, int block_no) {
+void fs_sync_block_no(struct partition_manager* fsm, int block_no) {
   struct bitmap* block_btmp_ptr = &fsm->block_btmp;
   // which block contains this block no
   int block_off = block_no / BLOCK_BITS;
@@ -266,24 +266,24 @@ void fs_init(void) {
   struct list_elem* part_tag = list_top(&disk_partitions);
   struct partition* part;
   part = elem2entry(struct partition, tag, part_tag);
-  if (!fs_load(&fsm_default, part)) {
+  if (!fs_load(&cur_partition, part)) {
     printf("  make default file system\n");
-    fs_make(&fsm_default, part);
+    fs_make(&cur_partition, part);
   }
 
-  dir_open_root(&fsm_default);
+  dir_open_root(&cur_partition);
 
   // FIXME: Test only
   struct dir_entry de;
 
   strcpy(de.filename, "chloe");
   de.f_type = TYPE_NORMAL;
-  de.inode_no = fs_alloc_inode_no(&fsm_default);
+  de.inode_no = fs_alloc_inode_no(&cur_partition);
   dir_append_entry(&dir_root, &de);
 
   strcpy(de.filename, "shikamaru");
   de.f_type = TYPE_NORMAL;
-  de.inode_no = fs_alloc_inode_no(&fsm_default);
+  de.inode_no = fs_alloc_inode_no(&cur_partition);
   dir_append_entry(&dir_root, &de);
 
   struct dir_entry de2;
@@ -292,13 +292,13 @@ void fs_init(void) {
   
   // FIXME: end test code
 
-  printf("  mount %s as default file system\n", fsm_default.part->name);
+  printf("  mount %s as default file system\n", cur_partition.part->name);
   printf("fs_init done\n");
 }
 
 void inode_sync(struct inode_elem* inode_elem) {
   struct inode* inode = &inode_elem->inode;
-  struct fs_manager* fsm = inode_elem->fsm;
+  struct partition_manager* fsm = inode_elem->fsm;
 
   // locale the block where the inode lives
   uint32_t block_no = inode->no / FS_INODE_TABLES_BLOCK_CNT;
@@ -320,7 +320,7 @@ void inode_sync(struct inode_elem* inode_elem) {
   sys_free(inode_table);
 }
 
-struct inode_elem* inode_create(struct fs_manager *fsm) {
+struct inode_elem* inode_create(struct partition_manager *fsm) {
   int inode_no = fs_alloc_inode_no(fsm);
   struct inode_elem* inode_elem;
 
@@ -352,7 +352,7 @@ struct inode_elem* inode_create(struct fs_manager *fsm) {
 
 // open inode in default file manager
 // FIXME: return null if inode no not create
-struct inode_elem* inode_open(struct fs_manager* fsm, uint32_t inode_no) {
+struct inode_elem* inode_open(struct partition_manager* fsm, uint32_t inode_no) {
   struct list_elem* elem = fsm->inode_list.head.next;
   struct inode_elem* inode_elem;
 
@@ -440,7 +440,7 @@ uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx
   // load extend sector
   uint32_t ext_blk_lba = inode->sectors[FS_INODE_EXTEND_BLOCK_INDEX];
   uint32_t* ext_sec = (uint32_t*)sys_malloc(BLOCK_SIZE);
-  struct fs_manager* fsm = inode_elem->fsm;
+  struct partition_manager* fsm = inode_elem->fsm;
   uint32_t real_lba = fsm->part->lba_start + ext_blk_lba;
 
   // init buf if extend block is not exist before
@@ -484,7 +484,7 @@ uint32_t inode_idx_to_lba(struct inode_elem* inode_elem, uint32_t sec_idx) {
     return 0;
   }
 
-  struct fs_manager* fsm = inode_elem->fsm;
+  struct partition_manager* fsm = inode_elem->fsm;
   uint32_t real_lba = fsm->part->lba_start + ext_blk_lba;
 
   disk_read(fsm->part->hd, ext_sec, real_lba, BLOCK_SECS);
@@ -499,7 +499,7 @@ int inode_read(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf) {
   if (lba == 0) {
     return -1;
   }
-  struct fs_manager* fsm = inode_elem->fsm;
+  struct partition_manager* fsm = inode_elem->fsm;
   uint32_t real_lba = fsm->part->lba_start + lba;
   disk_read(fsm->part->hd, buf, real_lba, BLOCK_SECS);
   return 0;
@@ -510,13 +510,13 @@ int inode_write(struct inode_elem *inode_elem, uint32_t sec_idx, char *buf) {
   if (lba == 0) {
     return -1;
   }
-  struct fs_manager* fsm = inode_elem->fsm;
+  struct partition_manager* fsm = inode_elem->fsm;
   uint32_t real_lba = fsm->part->lba_start + lba;
   disk_write(fsm->part->hd, buf, real_lba, BLOCK_SECS);
   return 0;
 }
 
-void dir_open_root(struct fs_manager* fsm) {
+void dir_open_root(struct partition_manager* fsm) {
   struct inode_elem* root_inode_elem = inode_open(fsm, fsm->sblock->root_inode_no);
   dir_root.inode_elem = root_inode_elem;
 }
@@ -539,7 +539,7 @@ int dir_append_entry(struct dir* parent, struct dir_entry* ent) {
 
   struct dir_entry* dents = (struct dir_entry*)sys_malloc(BLOCK_SIZE);
 
-  struct fs_manager* fsm = parent->inode_elem->fsm;
+  struct partition_manager* fsm = parent->inode_elem->fsm;
   uint32_t real_lba = block_lba + fsm->part->lba_start;
   disk_read(fsm->part->hd, dents, real_lba, BLOCK_SECS);
 

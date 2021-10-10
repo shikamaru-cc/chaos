@@ -8,7 +8,9 @@
 #include "kernel/bitmap.h"
 #include "super_block.h"
 
-struct fs_manager {
+// partition_manager is responsible for managing superblock, inode bitmap and
+// block bitmap for a partition
+struct partition_manager {
   struct partition* part;
   struct super_block* sblock;
   struct list inode_list; // record opened inode
@@ -16,8 +18,8 @@ struct fs_manager {
   struct bitmap block_btmp;
 };
 
-// default file system manager
-struct fs_manager fsm_default;
+// default partition manager
+struct partition_manager cur_partition;
 
 #define FS_INODE_NUM_SECTORS 13
 #define FS_INODE_MAX_SECTORS (12 + BLOCK_SIZE / (sizeof(uint32_t)))
@@ -36,7 +38,7 @@ struct inode {
 
 struct inode_elem {
   struct inode inode;
-  struct fs_manager* fsm;
+  struct partition_manager* fsm;
   struct list_elem inode_tag;
   int ref; // How many files reference this inode
 };
