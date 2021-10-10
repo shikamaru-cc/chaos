@@ -84,7 +84,7 @@ bool fs_load(struct partition_manager* fsm, struct partition* part) {
   fsm->sblock = sblock;
 
   // Init opened inode list
-  list_init(&fsm->inode_list);
+  list_init(&inode_list);
 
   // Load inode bitmap
   struct bitmap* inode_btmp_ptr = &fsm->inode_btmp;
@@ -139,7 +139,7 @@ void fs_make(struct partition_manager* fsm, struct partition* part) {
   fsm->sblock = sblock;
 
   // Init opened inode list
-  list_init(&fsm->inode_list);
+  list_init(&inode_list);
 
   // Init inode bitmap
   struct bitmap* inode_btmp_ptr = &fsm->inode_btmp;
@@ -344,7 +344,7 @@ struct inode_elem* inode_create(struct partition_manager *fsm) {
 
   // other fileds
   inode_elem->partmgr = fsm;
-  list_append(&fsm->inode_list, &inode_elem->inode_tag);
+  list_append(&inode_list, &inode_elem->inode_tag);
   inode_elem->ref = 1;
 
   return inode_elem;
@@ -353,10 +353,10 @@ struct inode_elem* inode_create(struct partition_manager *fsm) {
 // open inode in default file manager
 // FIXME: return null if inode no not create
 struct inode_elem* inode_open(struct partition_manager* fsm, uint32_t inode_no) {
-  struct list_elem* elem = fsm->inode_list.head.next;
+  struct list_elem* elem = inode_list.head.next;
   struct inode_elem* inode_elem;
 
-  while(elem != &fsm->inode_list.tail) {
+  while(elem != &inode_list.tail) {
     inode_elem = elem2entry(struct inode_elem, inode_tag, elem);
     if (inode_elem->inode.no == inode_no) {
       inode_elem->ref++;
@@ -384,7 +384,7 @@ struct inode_elem* inode_open(struct partition_manager* fsm, uint32_t inode_no) 
   memcpy(inode, inode_in_disk, sizeof(struct inode));
   // init other fileds
   inode_elem->partmgr = fsm;
-  list_push(&fsm->inode_list, &inode_elem->inode_tag);
+  list_push(&inode_list, &inode_elem->inode_tag);
   inode_elem->ref = 1;
 
   sys_free(inode_table);

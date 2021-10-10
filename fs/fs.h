@@ -13,7 +13,6 @@
 struct partition_manager {
   struct partition* part;
   struct super_block* sblock;
-  struct list inode_list; // record opened inode
   struct bitmap inode_btmp;
   struct bitmap block_btmp;
 };
@@ -42,6 +41,9 @@ struct inode_elem {
   struct list_elem inode_tag;
   int32_t ref; // How many files reference this inode
 };
+
+// inode_list caches opened inodes
+struct list inode_list;
 
 enum file_type {
   TYPE_DIR,
