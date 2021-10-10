@@ -76,7 +76,7 @@ bool fs_load(struct fs_manager* fsm, struct partition* part) {
   // read super block
   disk_read(part->hd, sblock, part->lba_start + 1, 1);
 
-  if (sblock->magic != FS_SUPER_BLOCK_MAGIC) {
+  if (sblock->magic != SUPER_BLOCK_MAGIC) {
     sys_free(sblock);
     return false;
   }
@@ -112,22 +112,22 @@ void fs_make(struct fs_manager* fsm, struct partition* part) {
   // to use a new malloc call for kernel mode
   sblock = (struct super_block*)sys_malloc(sizeof(struct super_block));
 
-  sblock->magic = FS_SUPER_BLOCK_MAGIC;
+  sblock->magic = SUPER_BLOCK_MAGIC;
   sblock->sec_cnt = part->sec_cnt;
   sblock->inode_cnt = FS_INODE_CNT;
   sblock->part_lba_start = part->lba_start;
 
-  sblock->block_btmp_lba = part->lba_start + 1 + FS_BLOCK_SECS;
+  sblock->block_btmp_lba = part->lba_start + 1 + BLOCK_SECS;
   sblock->block_btmp_secs = \
-    DIV_ROUND_UP(part->sec_cnt / FS_BLOCK_SECS, FS_BLOCK_BITS) * FS_BLOCK_SECS;
+    DIV_ROUND_UP(part->sec_cnt / BLOCK_SECS, BLOCK_BITS) * BLOCK_SECS;
 
   sblock->inode_btmp_lba = sblock->block_btmp_lba + sblock->block_btmp_secs;
   sblock->inode_btmp_secs = \
-    DIV_ROUND_UP(FS_INODE_CNT, FS_BLOCK_BITS) * FS_BLOCK_SECS;
+    DIV_ROUND_UP(FS_INODE_CNT, BLOCK_BITS) * BLOCK_SECS;
 
   sblock->inode_table_lba = sblock->inode_btmp_lba + sblock->inode_btmp_secs;
   sblock->inode_table_secs = \
-    DIV_ROUND_UP(FS_INODE_CNT, FS_INODE_TABLES_BLOCK_CNT) * FS_BLOCK_SECS;
+    DIV_ROUND_UP(FS_INODE_CNT, FS_INODE_TABLES_BLOCK_CNT) * BLOCK_SECS;
 
   sblock->data_lba = sblock->inode_table_lba + sblock->inode_table_secs;
   sblock->root_inode_no = 0;
@@ -217,10 +217,10 @@ void fs_free_inode_no(struct fs_manager* fsm, int inode_no) {
 void fs_sync_inode_no(struct fs_manager* fsm, int inode_no) {
   struct bitmap* inode_btmp_ptr = &fsm->inode_btmp;
   // which block contains this inode no
-  int block_off = inode_no / FS_BLOCK_BITS;
+  int block_off = inode_no / BLOCK_BITS;
   uint32_t btmp_lba = fsm->sblock->inode_btmp_lba + block_off;
   // find corresponding bits block in memory
-  uint32_t bytes_off = block_off * FS_BLOCK_SIZE;
+  uint32_t bytes_off = block_off * BLOCK_SIZE;
   ASSERT(bytes_off < inode_btmp_ptr->btmp_bytes_len);
   void* bits_start = inode_btmp_ptr->bits + bytes_off;
   // sync
@@ -250,10 +250,10 @@ void fs_free_block_no(struct fs_manager* fsm, int block_no) {
 void fs_sync_block_no(struct fs_manager* fsm, int block_no) {
   struct bitmap* block_btmp_ptr = &fsm->block_btmp;
   // which block contains this block no
-  int block_off = block_no / FS_BLOCK_BITS;
+  int block_off = block_no / BLOCK_BITS;
   uint32_t btmp_lba = fsm->sblock->block_btmp_lba + block_off;
   // find corresponding bits block in memory
-  uint32_t bytes_off = block_off * FS_BLOCK_SIZE;
+  uint32_t bytes_off = block_off * BLOCK_SIZE;
   ASSERT(bytes_off < block_btmp_ptr->btmp_bytes_len);
   void* bits_start = block_btmp_ptr->bits + bytes_off;
   // sync
@@ -303,20 +303,20 @@ void inode_sync(struct inode_elem* inode_elem) {
   // locale the block where the inode lives
   uint32_t block_no = inode->no / FS_INODE_TABLES_BLOCK_CNT;
   uint32_t block_off = inode->no % FS_INODE_TABLES_BLOCK_CNT;
-  uint32_t lba = fsm->sblock->inode_table_lba + block_no * FS_BLOCK_SECS;
+  uint32_t lba = fsm->sblock->inode_table_lba + block_no * BLOCK_SECS;
   ASSERT(lba < fsm->sblock->inode_table_lba + fsm->sblock->inode_btmp_secs);
 
   // load block
   // FIXME: this malloc may allocate memory in user space
-  struct inode* inode_table = (struct inode*)sys_malloc(FS_BLOCK_SIZE);
-  disk_read(fsm->part->hd, inode_table, lba, FS_BLOCK_SECS);
+  struct inode* inode_table = (struct inode*)sys_malloc(BLOCK_SIZE);
+  disk_read(fsm->part->hd, inode_table, lba, BLOCK_SECS);
 
   // copy new inode
   struct inode* inode_in_disk = &inode_table[block_off];
   memcpy(inode_in_disk, inode, sizeof(struct inode));
 
   // flush new inode
-  disk_write(fsm->part->hd, inode_table, lba, FS_BLOCK_SECS);
+  disk_write(fsm->part->hd, inode_table, lba, BLOCK_SECS);
   sys_free(inode_table);
 }
 
@@ -370,13 +370,13 @@ struct inode_elem* inode_open(struct fs_manager* fsm, uint32_t inode_no) {
   // locale the block where the inode lives
   uint32_t block_no = inode_no / FS_INODE_TABLES_BLOCK_CNT;
   uint32_t block_off = inode_no % FS_INODE_TABLES_BLOCK_CNT;
-  uint32_t lba = fsm->sblock->inode_table_lba + block_no * FS_BLOCK_SECS;
+  uint32_t lba = fsm->sblock->inode_table_lba + block_no * BLOCK_SECS;
   ASSERT(lba < fsm->sblock->inode_table_lba + fsm->sblock->inode_btmp_secs);
 
   // load block
   // FIXME: this malloc may allocate memory in user space
-  struct inode* inode_table = (struct inode*)sys_malloc(FS_BLOCK_SIZE);
-  disk_read(fsm->part->hd, inode_table, lba, FS_BLOCK_SECS);
+  struct inode* inode_table = (struct inode*)sys_malloc(BLOCK_SIZE);
+  disk_read(fsm->part->hd, inode_table, lba, BLOCK_SECS);
 
   // copy to memory
   struct inode* inode = &inode_elem->inode;
@@ -439,15 +439,15 @@ uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx
 
   // load extend sector
   uint32_t ext_blk_lba = inode->sectors[FS_INODE_EXTEND_BLOCK_INDEX];
-  uint32_t* ext_sec = (uint32_t*)sys_malloc(FS_BLOCK_SIZE);
+  uint32_t* ext_sec = (uint32_t*)sys_malloc(BLOCK_SIZE);
   struct fs_manager* fsm = inode_elem->fsm;
   uint32_t real_lba = fsm->part->lba_start + ext_blk_lba;
 
   // init buf if extend block is not exist before
   if (!exist) {
-    memset(ext_sec, 0, FS_BLOCK_SIZE);
+    memset(ext_sec, 0, BLOCK_SIZE);
   } else {
-    disk_read(fsm->part->hd, ext_sec, real_lba, FS_BLOCK_SECS);
+    disk_read(fsm->part->hd, ext_sec, real_lba, BLOCK_SECS);
   }
 
   uint32_t ext_sec_idx = sec_idx - FS_INODE_EXTEND_BLOCK_INDEX;
@@ -460,7 +460,7 @@ uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx
 
     // sync extend sector
     ext_sec[ext_sec_idx] = free_block_lba;
-    disk_write(fsm->part->hd, ext_sec, real_lba, FS_BLOCK_SECS);
+    disk_write(fsm->part->hd, ext_sec, real_lba, BLOCK_SECS);
   }
 
   uint32_t ret = ext_sec[ext_sec_idx];
@@ -479,7 +479,7 @@ uint32_t inode_idx_to_lba(struct inode_elem* inode_elem, uint32_t sec_idx) {
     return 0;
   }
 
-  uint32_t* ext_sec = sys_malloc(FS_BLOCK_SIZE);
+  uint32_t* ext_sec = sys_malloc(BLOCK_SIZE);
   if (ext_sec == NULL) {
     return 0;
   }
@@ -487,7 +487,7 @@ uint32_t inode_idx_to_lba(struct inode_elem* inode_elem, uint32_t sec_idx) {
   struct fs_manager* fsm = inode_elem->fsm;
   uint32_t real_lba = fsm->part->lba_start + ext_blk_lba;
 
-  disk_read(fsm->part->hd, ext_sec, real_lba, FS_BLOCK_SECS);
+  disk_read(fsm->part->hd, ext_sec, real_lba, BLOCK_SECS);
 
   uint32_t ret = ext_sec[sec_idx - FS_INODE_EXTEND_BLOCK_INDEX];
   sys_free(ext_sec);
@@ -501,7 +501,7 @@ int inode_read(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf) {
   }
   struct fs_manager* fsm = inode_elem->fsm;
   uint32_t real_lba = fsm->part->lba_start + lba;
-  disk_read(fsm->part->hd, buf, real_lba, FS_BLOCK_SECS);
+  disk_read(fsm->part->hd, buf, real_lba, BLOCK_SECS);
   return 0;
 }
 
@@ -512,7 +512,7 @@ int inode_write(struct inode_elem *inode_elem, uint32_t sec_idx, char *buf) {
   }
   struct fs_manager* fsm = inode_elem->fsm;
   uint32_t real_lba = fsm->part->lba_start + lba;
-  disk_write(fsm->part->hd, buf, real_lba, FS_BLOCK_SECS);
+  disk_write(fsm->part->hd, buf, real_lba, BLOCK_SECS);
   return 0;
 }
 
@@ -537,18 +537,18 @@ int dir_append_entry(struct dir* parent, struct dir_entry* ent) {
     return -1;
   }
 
-  struct dir_entry* dents = (struct dir_entry*)sys_malloc(FS_BLOCK_SIZE);
+  struct dir_entry* dents = (struct dir_entry*)sys_malloc(BLOCK_SIZE);
 
   struct fs_manager* fsm = parent->inode_elem->fsm;
   uint32_t real_lba = block_lba + fsm->part->lba_start;
-  disk_read(fsm->part->hd, dents, real_lba, FS_BLOCK_SECS);
+  disk_read(fsm->part->hd, dents, real_lba, BLOCK_SECS);
 
   memcpy(&dents[sec_off], ent, sizeof(struct dir_entry));
 
   // sync inode table and data
   parent_inode->size++;
   inode_sync(parent->inode_elem);
-  disk_write(fsm->part->hd, dents, real_lba, FS_BLOCK_SECS);
+  disk_write(fsm->part->hd, dents, real_lba, BLOCK_SECS);
 
   sys_free(dents);
   return 1;
@@ -559,7 +559,7 @@ int dir_search(struct dir* parent, char* filename, struct dir_entry* ent) {
     return -1;
   }
 
-  struct dir_entry* dents = (struct dir_entry*)sys_malloc(FS_BLOCK_SIZE);
+  struct dir_entry* dents = (struct dir_entry*)sys_malloc(BLOCK_SIZE);
   if (dents == NULL) {
     return -1;
   }
