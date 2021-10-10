@@ -7,33 +7,14 @@
 #include "kernel/list.h"
 #include "kernel/bitmap.h"
 #include "super_block.h"
+#include "partition_manager.h"
 
-// partition_manager is responsible for managing superblock, inode bitmap and
-// block bitmap for a partition
-struct partition_manager {
-  struct partition* part;
-  struct super_block* sblock;
-  struct bitmap inode_btmp;
-  struct bitmap block_btmp;
-};
-
-// default partition manager
-struct partition_manager cur_partition;
-
-#define FS_INODE_NUM_SECTORS 13
-#define FS_INODE_MAX_SECTORS (12 + BLOCK_SIZE / (sizeof(uint32_t)))
-#define FS_INODE_EXTEND_BLOCK_INDEX 12
+// NOTE: if modify fields in inode, remember to modify FS_INODE_TABLE_SIZE
 struct inode {
   uint32_t no; // inode no.
   uint32_t size; // dir: entry cnt, normal: file size
   uint32_t sectors[FS_INODE_NUM_SECTORS]; // 0 - 11: data sector index, 12: extend block index
 } __attribute__ ((packed));
-
-#define FS_INODE_BTMP_BLOCKS        1
-#define FS_INODE_CNT                (FS_INODE_BTMP_BLOCKS * BLOCK_BITS)
-#define FS_INODE_TABLE_SIZE         (sizeof(struct inode))
-#define FS_INODE_TABLES_BLOCK_CNT   (BLOCK_SIZE / FS_INODE_TABLE_SIZE)
-#define FS_EXTEND_BLOCK_CNT         (BLOCK_SIZE / (sizeof uint32))
 
 struct inode_elem {
   struct inode inode;
