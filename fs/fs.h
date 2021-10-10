@@ -40,7 +40,7 @@ struct inode_elem {
   struct inode inode;
   struct partition_manager* fsm;
   struct list_elem inode_tag;
-  int ref; // How many files reference this inode
+  int32_t ref; // How many files reference this inode
 };
 
 enum file_type {
@@ -65,7 +65,7 @@ struct dir {
 struct dir dir_root;
 
 struct file {
-  int fd_flag;
+  int32_t fd_flag;
   uint32_t fd_pos;
   struct inode_elem* inode_elem;
 };

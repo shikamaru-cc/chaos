@@ -4,13 +4,13 @@
 #include "kernel/bitmap.h"
 #include "kernel/list.h"
 #include "stdio.h"
+#include "stdint.h"
 #include "string.h"
 #include "stdnull.h"
 #include "stdbool.h"
 #include "global.h"
 #include "thread.h"
 #include "memory.h"
-#include <stdint.h>
 
 // -------------------------- Struct partition_manager ----------------------------- //
 
@@ -22,17 +22,17 @@ void fs_make(struct partition_manager* fsm, struct partition* part);
 
 void fs_inode_close(struct inode_elem* inode_elem);
 
-int fs_alloc_inode_no(struct partition_manager* fsm);
+int32_t fs_alloc_inode_no(struct partition_manager* fsm);
 
-void fs_free_inode_no(struct partition_manager* fsm, int inode_no);
+void fs_free_inode_no(struct partition_manager* fsm, int32_t inode_no);
 
-void fs_sync_inode_no(struct partition_manager* fsm, int inode_no);
+void fs_sync_inode_no(struct partition_manager* fsm, int32_t inode_no);
 
-int fs_alloc_block_no(struct partition_manager* fsm);
+int32_t fs_alloc_block_no(struct partition_manager* fsm);
 
-void fs_free_block_no(struct partition_manager* fsm, int block_no);
+void fs_free_block_no(struct partition_manager* fsm, int32_t block_no);
 
-void fs_sync_block_no(struct partition_manager* fsm, int block_no);
+void fs_sync_block_no(struct partition_manager* fsm, int32_t block_no);
 
 // Public methods
 
@@ -52,17 +52,17 @@ uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx
 
 uint32_t inode_idx_to_lba(struct inode_elem* inode_elem, uint32_t sec_idx);
 
-int inode_read(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf);
+int32_t inode_read(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf);
 
-int inode_write(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf);
+int32_t inode_write(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf);
 
 // ------------------------------ Struct dir -------------------------------- //
 
 void dir_open_root(struct partition_manager* fsm);
 
-int dir_append_entry(struct dir* parent, struct dir_entry* ent);
+int32_t dir_append_entry(struct dir* parent, struct dir_entry* ent);
 
-int dir_search(struct dir* parent, char* filename, struct dir_entry* ent);
+int32_t dir_search(struct dir* parent, char* filename, struct dir_entry* ent);
 
 // --------------------------- Implementation ------------------------------- //
 
@@ -160,7 +160,7 @@ void fs_make(struct partition_manager* fsm, struct partition* part) {
   bitmap_init(block_btmp_ptr);
 
   // Set used block
-  int i, used_block;
+  int32_t i, used_block;
   used_block = sblock->data_lba - sblock->part_lba_start;
   for (i = 0; i < used_block; i++) {
     bitmap_set(block_btmp_ptr, i);
@@ -168,7 +168,7 @@ void fs_make(struct partition_manager* fsm, struct partition* part) {
 
   // Our block bitmap size may be larger than actual block count,
   // so we need to set the tail non-exist block index to be used.
-  int block_btmp_size = block_btmp_ptr->btmp_bytes_len * 8;
+  int32_t block_btmp_size = block_btmp_ptr->btmp_bytes_len * 8;
   for (i = sblock->sec_cnt; i < block_btmp_size; i++) {
     bitmap_set(block_btmp_ptr, i);
   }
@@ -194,8 +194,8 @@ void fs_make(struct partition_manager* fsm, struct partition* part) {
 
 // NOTE: fs_alloc_inode_no and fs_free_inode_no only modify inode bitmap in
 // memory with no operation with disk.
-int fs_alloc_inode_no(struct partition_manager* fsm) {
-  int free_inode_no;
+int32_t fs_alloc_inode_no(struct partition_manager* fsm) {
+  int32_t free_inode_no;
   struct bitmap* inode_btmp_ptr = &fsm->inode_btmp;
 
   free_inode_no = bitmap_scan(inode_btmp_ptr, 1);
@@ -207,17 +207,17 @@ int fs_alloc_inode_no(struct partition_manager* fsm) {
   return free_inode_no;
 }
 
-void fs_free_inode_no(struct partition_manager* fsm, int inode_no) {
+void fs_free_inode_no(struct partition_manager* fsm, int32_t inode_no) {
   // Not allow inode_no == 0, which is the root inode no
   ASSERT(inode_no > 0);
   struct bitmap* inode_btmp_ptr = &fsm->inode_btmp;
   bitmap_unset(inode_btmp_ptr, inode_no);
 }
 
-void fs_sync_inode_no(struct partition_manager* fsm, int inode_no) {
+void fs_sync_inode_no(struct partition_manager* fsm, int32_t inode_no) {
   struct bitmap* inode_btmp_ptr = &fsm->inode_btmp;
   // which block contains this inode no
-  int block_off = inode_no / BLOCK_BITS;
+  int32_t block_off = inode_no / BLOCK_BITS;
   uint32_t btmp_lba = fsm->sblock->inode_btmp_lba + block_off;
   // find corresponding bits block in memory
   uint32_t bytes_off = block_off * BLOCK_SIZE;
@@ -227,8 +227,8 @@ void fs_sync_inode_no(struct partition_manager* fsm, int inode_no) {
   disk_write(fsm->part->hd, bits_start, btmp_lba, 1);
 }
 
-int fs_alloc_block_no(struct partition_manager* fsm) {
-  int free_block_no;
+int32_t fs_alloc_block_no(struct partition_manager* fsm) {
+  int32_t free_block_no;
   struct bitmap* block_btmp_ptr = &fsm->block_btmp;
 
   free_block_no = bitmap_scan(block_btmp_ptr, 1);
@@ -241,16 +241,16 @@ int fs_alloc_block_no(struct partition_manager* fsm) {
   return free_block_no;
 }
 
-void fs_free_block_no(struct partition_manager* fsm, int block_no) {
+void fs_free_block_no(struct partition_manager* fsm, int32_t block_no) {
   struct bitmap* block_btmp_ptr = &fsm->block_btmp;
   bitmap_unset(block_btmp_ptr, block_no);
   fs_sync_inode_no(fsm, block_no);
 }
 
-void fs_sync_block_no(struct partition_manager* fsm, int block_no) {
+void fs_sync_block_no(struct partition_manager* fsm, int32_t block_no) {
   struct bitmap* block_btmp_ptr = &fsm->block_btmp;
   // which block contains this block no
-  int block_off = block_no / BLOCK_BITS;
+  int32_t block_off = block_no / BLOCK_BITS;
   uint32_t btmp_lba = fsm->sblock->block_btmp_lba + block_off;
   // find corresponding bits block in memory
   uint32_t bytes_off = block_off * BLOCK_SIZE;
@@ -321,7 +321,7 @@ void inode_sync(struct inode_elem* inode_elem) {
 }
 
 struct inode_elem* inode_create(struct partition_manager *fsm) {
-  int inode_no = fs_alloc_inode_no(fsm);
+  int32_t inode_no = fs_alloc_inode_no(fsm);
   struct inode_elem* inode_elem;
 
   if (inode_no < 0) {
@@ -335,7 +335,7 @@ struct inode_elem* inode_create(struct partition_manager *fsm) {
   inode->no = inode_no;
   inode->size = 0;
 
-  int i;
+  int32_t i;
   for (i = 0; i < FS_INODE_NUM_SECTORS; i++) {
     inode->sectors[i] = 0;
   }
@@ -412,7 +412,7 @@ uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx
     }
 
     // map new block
-    int free_block_lba = fs_alloc_block_no(inode_elem->fsm);
+    int32_t free_block_lba = fs_alloc_block_no(inode_elem->fsm);
     if (free_block_lba < 0) {
       return 0;
     }
@@ -428,7 +428,7 @@ uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx
   // alloc new block if extend block not exist
   if (inode->sectors[FS_INODE_EXTEND_BLOCK_INDEX] == 0) {
     exist  = false;
-    int free_block_lba = fs_alloc_block_no(inode_elem->fsm);
+    int32_t free_block_lba = fs_alloc_block_no(inode_elem->fsm);
     if (free_block_lba < 0) {
       return 0;
     }
@@ -452,7 +452,7 @@ uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx
 
   uint32_t ext_sec_idx = sec_idx - FS_INODE_EXTEND_BLOCK_INDEX;
   if (ext_sec[ext_sec_idx] == 0) {
-    int free_block_lba = fs_alloc_block_no(inode_elem->fsm);
+    int32_t free_block_lba = fs_alloc_block_no(inode_elem->fsm);
 
     if (free_block_lba < 0) {
       return 0;
@@ -494,7 +494,7 @@ uint32_t inode_idx_to_lba(struct inode_elem* inode_elem, uint32_t sec_idx) {
   return ret;
 }
 
-int inode_read(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf) {
+int32_t inode_read(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf) {
   uint32_t lba = inode_idx_to_lba(inode_elem, sec_idx);
   if (lba == 0) {
     return -1;
@@ -505,7 +505,7 @@ int inode_read(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf) {
   return 0;
 }
 
-int inode_write(struct inode_elem *inode_elem, uint32_t sec_idx, char *buf) {
+int32_t inode_write(struct inode_elem *inode_elem, uint32_t sec_idx, char *buf) {
   uint32_t lba = inode_idx_to_lba(inode_elem, sec_idx);
   if (lba == 0) {
     return -1;
@@ -521,7 +521,7 @@ void dir_open_root(struct partition_manager* fsm) {
   dir_root.inode_elem = root_inode_elem;
 }
 
-int dir_append_entry(struct dir* parent, struct dir_entry* ent) {
+int32_t dir_append_entry(struct dir* parent, struct dir_entry* ent) {
   struct inode* parent_inode = &parent->inode_elem->inode;
   if (parent_inode->size >= DIR_MAX_ENTRY) {
     return -1;
@@ -529,8 +529,8 @@ int dir_append_entry(struct dir* parent, struct dir_entry* ent) {
 
   uint32_t pos = parent_inode->size;
 
-  int sec_idx = pos / DIR_ENTRY_PER_BLOCK;
-  int sec_off = pos % DIR_ENTRY_PER_BLOCK;
+  int32_t sec_idx = pos / DIR_ENTRY_PER_BLOCK;
+  int32_t sec_off = pos % DIR_ENTRY_PER_BLOCK;
 
   uint32_t block_lba = inode_get_or_create_sec(parent->inode_elem, sec_idx);
   if (block_lba == 0) {
@@ -554,7 +554,7 @@ int dir_append_entry(struct dir* parent, struct dir_entry* ent) {
   return 1;
 }
 
-int dir_search(struct dir* parent, char* filename, struct dir_entry* ent) {
+int32_t dir_search(struct dir* parent, char* filename, struct dir_entry* ent) {
   if (strlen(filename) == 0) {
     return -1;
   }
