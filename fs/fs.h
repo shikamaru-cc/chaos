@@ -11,12 +11,6 @@
 #include "inode.h"
 #include "dir.h"
 
-struct file {
-  int32_t fd_flag;
-  uint32_t fd_pos;
-  struct inode_elem* inode_elem;
-};
-
 void fs_init(void);
 
 #endif
