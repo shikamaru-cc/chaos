@@ -108,4 +108,3 @@ clean:
 	cd device && rm -f *.o
 	cd lib && rm -f *.o
 	cd lib/kernel && rm -f *.o
-	cd lib/user && rm -f *.o
