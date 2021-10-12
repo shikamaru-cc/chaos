@@ -17,7 +17,7 @@ struct dir_entry {
 } __attribute__ ((packed));
 
 #define DIR_ENTRY_PER_BLOCK (BLOCK_SIZE / (sizeof(struct dir_entry)))
-#define DIR_MAX_ENTRY       (DIR_ENTRY_PER_BLOCK * FS_INODE_MAX_SECTORS)
+#define DIR_MAX_ENTRY       (DIR_ENTRY_PER_BLOCK * FS_INODE_TOTAL_BLOCKS)
 
 struct dir {
   struct inode_elem* inode_elem;

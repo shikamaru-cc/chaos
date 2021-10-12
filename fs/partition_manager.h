@@ -17,15 +17,15 @@ struct partition_manager {
 // default partition manager
 struct partition_manager cur_partition;
 
-#define FS_INODE_NUM_SECTORS 13
-#define FS_INODE_MAX_SECTORS (12 + BLOCK_SIZE / (sizeof(uint32_t)))
+#define FS_INODE_NUM_BLOCKS 13
+#define FS_INODE_TOTAL_BLOCKS (12 + BLOCK_SIZE / (sizeof(uint32_t)))
 #define FS_INODE_EXTEND_BLOCK_INDEX 12
 
 #define FS_INODE_BTMP_BLOCKS        1
 #define FS_INODE_CNT                (FS_INODE_BTMP_BLOCKS * BLOCK_BITS)
 
 // NOTE: remember to change this if struce inode change
-#define FS_INODE_TABLE_SIZE         (2*sizeof(uint32_t) + FS_INODE_NUM_SECTORS*(sizeof(uint32_t)))
+#define FS_INODE_TABLE_SIZE         (2*sizeof(uint32_t) + FS_INODE_NUM_BLOCKS*(sizeof(uint32_t)))
 #define FS_INODE_TABLES_BLOCK_CNT   (BLOCK_SIZE / FS_INODE_TABLE_SIZE)
 #define FS_EXTEND_BLOCK_CNT         (BLOCK_SIZE / (sizeof uint32))
 

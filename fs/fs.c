@@ -134,8 +134,8 @@ void fs_make(struct partition_manager* fsm, struct partition* part) {
   root_inode->no = sblock->root_inode_no;
   root_inode->size = 0;
 
-  for (i = 0; i < FS_INODE_NUM_SECTORS; i++) {
-    root_inode->sectors[i] = 0;
+  for (i = 0; i < FS_INODE_NUM_BLOCKS; i++) {
+    root_inode->blocks[i] = 0;
   }
 
   inode_sync(&root_inode_elem);

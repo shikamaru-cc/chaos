@@ -56,7 +56,7 @@ int32_t dir_search(struct dir* parent, char* filename, struct dir_entry* ent) {
   struct inode_elem* p_inode = parent->inode_elem;
   uint32_t cnt = 1;
   uint32_t i;
-  for (i = 0; i < FS_INODE_MAX_SECTORS; i++) {
+  for (i = 0; i < FS_INODE_TOTAL_BLOCKS; i++) {
     if (inode_read(p_inode, i, (char*)dents) < 0) {
       goto fail;
     }

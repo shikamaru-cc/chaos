@@ -57,8 +57,8 @@ struct inode_elem* inode_create(struct partition_manager *pmgr, uint32_t inode_n
   inode->size = 0;
 
   int32_t i;
-  for (i = 0; i < FS_INODE_NUM_SECTORS; i++) {
-    inode->sectors[i] = 0;
+  for (i = 0; i < FS_INODE_NUM_BLOCKS; i++) {
+    inode->blocks[i] = 0;
   }
 
   // other fileds
@@ -125,13 +125,13 @@ void inode_close(struct inode_elem* inode_elem) {
 uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx) {
   struct inode* inode = &inode_elem->inode;
 
-  if (sec_idx >= FS_INODE_MAX_SECTORS) {
+  if (sec_idx >= FS_INODE_TOTAL_BLOCKS) {
     PANIC("sec_idx > max");
   }
 
   if (sec_idx < FS_INODE_EXTEND_BLOCK_INDEX) {
-    if (inode->sectors[sec_idx] != 0) {
-      return inode->sectors[sec_idx];
+    if (inode->blocks[sec_idx] != 0) {
+      return inode->blocks[sec_idx];
     }
 
     // map new block
@@ -140,28 +140,28 @@ uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx
       return 0;
     }
 
-    inode->sectors[sec_idx] = free_block_lba;
+    inode->blocks[sec_idx] = free_block_lba;
     inode_sync(inode_elem);
-    return inode->sectors[sec_idx];
+    return inode->blocks[sec_idx];
   }
 
   // locate at extend sectors
 
   bool exist = true;
   // alloc new block if extend block not exist
-  if (inode->sectors[FS_INODE_EXTEND_BLOCK_INDEX] == 0) {
+  if (inode->blocks[FS_INODE_EXTEND_BLOCK_INDEX] == 0) {
     exist  = false;
     int32_t free_block_lba = get_free_block_no(inode_elem->partmgr);
     if (free_block_lba < 0) {
       return 0;
     }
 
-    inode->sectors[FS_INODE_EXTEND_BLOCK_INDEX] = free_block_lba;
+    inode->blocks[FS_INODE_EXTEND_BLOCK_INDEX] = free_block_lba;
     inode_sync(inode_elem);
   }
 
   // load extend sector
-  uint32_t ext_blk_lba = inode->sectors[FS_INODE_EXTEND_BLOCK_INDEX];
+  uint32_t ext_blk_lba = inode->blocks[FS_INODE_EXTEND_BLOCK_INDEX];
   uint32_t* ext_sec = (uint32_t*)sys_malloc(BLOCK_SIZE);
   struct partition_manager* pmgr = inode_elem->partmgr;
   uint32_t real_lba = pmgr->part->lba_start + ext_blk_lba;
@@ -193,11 +193,11 @@ uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx
 
 uint32_t inode_idx_to_lba(struct inode_elem* inode_elem, uint32_t sec_idx) {
   if (sec_idx < FS_INODE_EXTEND_BLOCK_INDEX) {
-    return inode_elem->inode.sectors[sec_idx];
+    return inode_elem->inode.blocks[sec_idx];
   }
 
   // load from extend block
-  uint32_t ext_blk_lba = inode_elem->inode.sectors[FS_INODE_EXTEND_BLOCK_INDEX];
+  uint32_t ext_blk_lba = inode_elem->inode.blocks[FS_INODE_EXTEND_BLOCK_INDEX];
   if (ext_blk_lba == 0) {
     return 0;
   }

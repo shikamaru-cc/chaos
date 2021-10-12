@@ -9,7 +9,7 @@
 struct inode {
   uint32_t no; // inode no.
   uint32_t size; // dir: entry cnt, normal: file size
-  uint32_t sectors[FS_INODE_NUM_SECTORS]; // 0 - 11: data sector index, 12: extend block index
+  uint32_t blocks[FS_INODE_NUM_BLOCKS]; // 0 - 11: data block index, 12: extend block index
 } __attribute__ ((packed));
 
 struct inode_elem {
