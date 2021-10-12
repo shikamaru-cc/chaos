@@ -22,13 +22,13 @@ struct inode_elem {
 // inode_list caches opened inodes
 struct list inode_list;
 
-void inode_sync(struct inode_elem* inode_elem);
-struct inode_elem* inode_create(struct partition_manager* fsm);
-struct inode_elem* inode_open(struct partition_manager* fsm, uint32_t inode_no);
-void inode_close(struct inode_elem* inode_elem);
-uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx);
-uint32_t inode_idx_to_lba(struct inode_elem* inode_elem, uint32_t sec_idx);
-int32_t inode_read(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf);
-int32_t inode_write(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf);
+extern void inode_sync(struct inode_elem* inode_elem);
+extern struct inode_elem* inode_create(struct partition_manager* pmgr, uint32_t inode_no);
+extern struct inode_elem* inode_open(struct partition_manager* pmgr, uint32_t inode_no);
+extern void inode_close(struct inode_elem* inode_elem);
+extern uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx);
+extern uint32_t inode_idx_to_lba(struct inode_elem* inode_elem, uint32_t sec_idx);
+extern int32_t inode_read(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf);
+extern int32_t inode_write(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf);
 
 #endif
