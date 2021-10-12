@@ -29,13 +29,11 @@ struct partition_manager cur_partition;
 #define FS_INODE_TABLES_BLOCK_CNT   (BLOCK_SIZE / FS_INODE_TABLE_SIZE)
 #define FS_EXTEND_BLOCK_CNT         (BLOCK_SIZE / (sizeof uint32))
 
-bool fs_load(struct partition_manager* fsm, struct partition* part);
-void fs_make(struct partition_manager* fsm, struct partition* part);
-int32_t fs_alloc_inode_no(struct partition_manager* fsm);
-void fs_free_inode_no(struct partition_manager* fsm, int32_t inode_no);
-void fs_sync_inode_no(struct partition_manager* fsm, int32_t inode_no);
-int32_t fs_alloc_block_no(struct partition_manager* fsm);
-void fs_free_block_no(struct partition_manager* fsm, int32_t block_no);
-void fs_sync_block_no(struct partition_manager* fsm, int32_t block_no);
+extern int32_t get_free_inode_no(struct partition_manager* pmgr);
+extern void release_inode_no(struct partition_manager* pmgr, int32_t inode_no);
+extern void sync_inode_no(struct partition_manager* pmgr, int32_t inode_no);
+extern int32_t get_free_block_no(struct partition_manager* pmgr);
+extern void release_block_no(struct partition_manager* pmgr, int32_t block_no);
+extern void sync_block_no(struct partition_manager* pmgr, int32_t block_no);
 
 #endif

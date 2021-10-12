@@ -164,12 +164,12 @@ void fs_init(void) {
 
   strcpy(de.filename, "chloe");
   de.f_type = TYPE_NORMAL;
-  de.inode_no = fs_alloc_inode_no(&cur_partition);
+  de.inode_no = get_free_inode_no(&cur_partition);
   dir_append_entry(&dir_root, &de);
 
   strcpy(de.filename, "shikamaru");
   de.f_type = TYPE_NORMAL;
-  de.inode_no = fs_alloc_inode_no(&cur_partition);
+  de.inode_no = get_free_inode_no(&cur_partition);
   dir_append_entry(&dir_root, &de);
 
   struct dir_entry de2;

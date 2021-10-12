@@ -30,7 +30,7 @@ void inode_sync(struct inode_elem* inode_elem) {
 }
 
 struct inode_elem* inode_create(struct partition_manager *fsm) {
-  int32_t inode_no = fs_alloc_inode_no(fsm);
+  int32_t inode_no = get_free_inode_no(fsm);
   struct inode_elem* inode_elem;
 
   if (inode_no < 0) {
@@ -121,7 +121,7 @@ uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx
     }
 
     // map new block
-    int32_t free_block_lba = fs_alloc_block_no(inode_elem->partmgr);
+    int32_t free_block_lba = get_free_block_no(inode_elem->partmgr);
     if (free_block_lba < 0) {
       return 0;
     }
@@ -137,7 +137,7 @@ uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx
   // alloc new block if extend block not exist
   if (inode->sectors[FS_INODE_EXTEND_BLOCK_INDEX] == 0) {
     exist  = false;
-    int32_t free_block_lba = fs_alloc_block_no(inode_elem->partmgr);
+    int32_t free_block_lba = get_free_block_no(inode_elem->partmgr);
     if (free_block_lba < 0) {
       return 0;
     }
@@ -161,7 +161,7 @@ uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx
 
   uint32_t ext_sec_idx = sec_idx - FS_INODE_EXTEND_BLOCK_INDEX;
   if (ext_sec[ext_sec_idx] == 0) {
-    int32_t free_block_lba = fs_alloc_block_no(inode_elem->partmgr);
+    int32_t free_block_lba = get_free_block_no(inode_elem->partmgr);
 
     if (free_block_lba < 0) {
       return 0;
