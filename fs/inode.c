@@ -1,4 +1,5 @@
 #include "debug.h"
+#include "stdbool.h"
 #include "stdint.h"
 #include "stdio.h"
 #include "partition_manager.h"
@@ -7,11 +8,13 @@
 #include "inode.h"
 #include "string.h"
 #include "memory.h"
+#include "super_block.h"
 
 void inode_sync(struct inode_elem* inode_elem);
 struct inode_elem* inode_create(struct partition_manager* pmgr, uint32_t inode_no);
 struct inode_elem* inode_open(struct partition_manager* pmgr, uint32_t inode_no);
 void inode_close(struct inode_elem* inode_elem);
+uint32_t inode_block_used(struct inode_elem* inode_elem);
 uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx);
 uint32_t inode_idx_to_lba(struct inode_elem* inode_elem, uint32_t sec_idx);
 int32_t inode_read(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf);
@@ -120,6 +123,40 @@ void inode_close(struct inode_elem* inode_elem) {
     list_remove(&inode_elem->inode_tag);
     kfree(inode_elem);
   }
+}
+
+uint32_t inode_block_used(struct inode_elem* inode_elem) {
+  uint32_t cnt = 0;
+
+  // count direct
+  uint32_t i;
+  for (i = 0; i < FS_INODE_NUM_BLOCKS-1; i++) {
+    if (inode_elem->inode.blocks[i] > 0) {
+      cnt++;
+    } else {
+      return cnt;
+    }
+  }
+
+  bool has_extend = inode_elem->inode.blocks[FS_INODE_EXTEND_BLOCK_INDEX] > 0;
+  if (!has_extend) {
+    return cnt;
+  }
+
+  // has indirect block
+  uint32_t* ext_blocks;
+  ext_blocks = (uint32_t*)sys_malloc(BLOCK_SIZE);
+  inode_read(inode_elem, FS_INODE_EXTEND_BLOCK_INDEX, (char*)ext_blocks);
+
+  for (i = 0; i < FS_INODE_EXTEND_BLOCK_CNT; i++) {
+    if (ext_blocks[i] == 0) {
+      break;
+    }
+    cnt++;
+  }
+
+  sys_free(ext_blocks);
+  return cnt;
 }
 
 uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx) {
