@@ -1,12 +1,17 @@
 #include "debug.h"
+#include "kernel/bitmap.h"
 #include "stdnull.h"
+#include "stdint.h"
+#include "stdbool.h"
 #include "memory.h"
 #include "disk.h"
 #include "partition_manager.h"
+#include "super_block.h"
 
 int32_t get_free_inode_no(struct partition_manager* pmgr);
 void release_inode_no(struct partition_manager* pmgr, int32_t inode_no);
 void sync_inode_no(struct partition_manager* pmgr, int32_t inode_no);
+bool validate_inode_no(struct partition_manager* pmgr, uint32_t inode_no);
 int32_t get_free_block_no(struct partition_manager* pmgr);
 void release_block_no(struct partition_manager* pmgr, int32_t block_no);
 void sync_block_no(struct partition_manager* pmgr, int32_t block_no);
@@ -38,7 +43,7 @@ void release_inode_no(struct partition_manager* pmgr, int32_t inode_no) {
 void sync_inode_no(struct partition_manager* pmgr, int32_t inode_no) {
   struct bitmap* inode_btmp_ptr = &pmgr->inode_btmp;
   // which block contains this inode no
-  int32_t block_off = inode_no / BLOCK_BITS;
+  uint32_t block_off = inode_no / BLOCK_BITS;
   uint32_t btmp_lba = pmgr->sblock->inode_btmp_lba + block_off;
   // find corresponding bits block in memory
   uint32_t bytes_off = block_off * BLOCK_SIZE;
@@ -46,6 +51,11 @@ void sync_inode_no(struct partition_manager* pmgr, int32_t inode_no) {
   void* bits_start = inode_btmp_ptr->bits + bytes_off;
   // sync
   disk_write(pmgr->part->hd, bits_start, btmp_lba, 1);
+}
+
+bool validate_inode_no(struct partition_manager* pmgr, uint32_t inode_no) {
+  struct bitmap* inode_btmp_ptr = &pmgr->inode_btmp;
+  return bitmap_scan_test(inode_btmp_ptr, inode_no);
 }
 
 int32_t get_free_block_no(struct partition_manager* pmgr) {
