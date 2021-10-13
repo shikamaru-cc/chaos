@@ -79,36 +79,25 @@ int32_t dir_search(struct dir* parent, char* filename, struct dir_entry* ent) {
     return -1;
   }
 
-  struct inode_elem* p_inode = parent->inode_elem;
-  uint32_t cnt = 1;
+  uint32_t block_used = inode_block_used(parent->inode_elem);
+
   uint32_t i;
-  for (i = 0; i < FS_INODE_TOTAL_BLOCKS; i++) {
-    if (inode_read(p_inode, i, (char*)dents) < 0) {
-      goto fail;
-    }
+  for (i = 0; i < block_used; i++) {
+    inode_read(parent->inode_elem, i, (char*)dents);
 
     uint32_t j;
     for (j = 0; j < DIR_ENTRY_PER_BLOCK; j++) {
-      if (cnt > p_inode->inode.size) {
-        goto fail;
-      }
-
-      if (strcmp(dents[j].filename, filename) == 0) {
+      if (dents[j].inode_no != 0 && strcmp(dents[j].filename, filename) == 0) {
         strcpy(ent->filename, dents[j].filename);
         ent->f_type = dents[j].f_type;
         ent->inode_no = dents[j].inode_no;
-        goto success;
-      }
 
-      cnt++;
+        sys_free(dents);
+        return 0;
+      }
     }
   }
 
-fail:
   sys_free(dents);
   return -1;
-
-success:
-  sys_free(dents);
-  return 0;
 }
