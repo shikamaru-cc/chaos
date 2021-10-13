@@ -14,7 +14,7 @@ void sync_inode_no(struct partition_manager* pmgr, int32_t inode_no);
 bool validate_inode_no(struct partition_manager* pmgr, uint32_t inode_no);
 int32_t get_free_block_no(struct partition_manager* pmgr);
 void release_block_no(struct partition_manager* pmgr, int32_t block_no);
-void sync_block_no(struct partition_manager* pmgr, int32_t block_no);
+void sync_block_btmp(struct partition_manager* pmgr);
 
 // IMPLEMENTATION
  
@@ -68,7 +68,6 @@ int32_t get_free_block_no(struct partition_manager* pmgr) {
   }
 
   bitmap_set(block_btmp_ptr, free_block_no);
-  sync_inode_no(pmgr, free_block_no);
   return free_block_no;
 }
 
@@ -78,15 +77,6 @@ void release_block_no(struct partition_manager* pmgr, int32_t block_no) {
   sync_inode_no(pmgr, block_no);
 }
 
-void sync_block_no(struct partition_manager* pmgr, int32_t block_no) {
-  struct bitmap* block_btmp_ptr = &pmgr->block_btmp;
-  // which block contains this block no
-  int32_t block_off = block_no / BLOCK_BITS;
-  uint32_t btmp_lba = pmgr->sblock->block_btmp_lba + block_off;
-  // find corresponding bits block in memory
-  uint32_t bytes_off = block_off * BLOCK_SIZE;
-  ASSERT(bytes_off < block_btmp_ptr->btmp_bytes_len);
-  void* bits_start = block_btmp_ptr->bits + bytes_off;
-  // sync
-  disk_write(pmgr->part->hd, bits_start, btmp_lba, 1);
+void sync_block_btmp(struct partition_manager* pmgr) {
+  disk_write(pmgr->part->hd, pmgr->block_btmp.bits, pmgr->sblock->block_btmp_lba, pmgr->sblock->block_btmp_secs);
 }

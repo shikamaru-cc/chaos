@@ -35,6 +35,6 @@ extern void sync_inode_no(struct partition_manager* pmgr, int32_t inode_no);
 extern bool validate_inode_no(struct partition_manager* pmgr, uint32_t inode_no);
 extern int32_t get_free_block_no(struct partition_manager* pmgr);
 extern void release_block_no(struct partition_manager* pmgr, int32_t block_no);
-extern void sync_block_no(struct partition_manager* pmgr, int32_t block_no);
+extern void sync_block_btmp(struct partition_manager* pmgr);
 
 #endif
