@@ -1,6 +1,7 @@
 #include "fs.h"
 
 #include "debug.h"
+#include "dir.h"
 #include "disk.h"
 #include "global.h"
 #include "inode.h"
@@ -146,6 +147,7 @@ void fs_make(struct partition_manager* fsm, struct partition* part) {
 
   return;
 }
+
 void fs_init(void) {
   printf("fs_init start\n");
   ASSERT(!list_empty(&disk_partitions));
@@ -166,19 +168,27 @@ void fs_init(void) {
   // FIXME: Test only
   struct dir_entry de;
 
+  uint32_t i;
+  for (i = 0; i < DIR_ENTRY_PER_BLOCK + 7; i++) {
+    strcpy(de.filename, "shikamaru");
+    de.f_type = TYPE_NORMAL;
+    de.inode_no = get_free_inode_no(&cur_partition);
+    dir_create_entry(&dir_root, &de);
+    sync_inode_no(&cur_partition, de.inode_no);
+  }
+
   strcpy(de.filename, "chloe");
   de.f_type = TYPE_NORMAL;
   de.inode_no = get_free_inode_no(&cur_partition);
   dir_create_entry(&dir_root, &de);
-
-  strcpy(de.filename, "shikamaru");
-  de.f_type = TYPE_NORMAL;
-  de.inode_no = get_free_inode_no(&cur_partition);
-  dir_create_entry(&dir_root, &de);
+  sync_inode_no(&cur_partition, de.inode_no);
 
   struct dir_entry de2;
+  dir_search(&dir_root, "chloe", &de2);
+  printf("  filename: %s, type: %d, inode_no: %d\n", de2.filename, de2.f_type,
+         de2.inode_no);
   dir_search(&dir_root, "shikamaru", &de2);
-  printf("filename: %s, type: %d, inode_no: %d", de2.filename, de2.f_type,
+  printf("  filename: %s, type: %d, inode_no: %d\n", de2.filename, de2.f_type,
          de2.inode_no);
 
   // FIXME: end test code
