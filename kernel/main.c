@@ -1,14 +1,14 @@
-#include "debug.h"
 #include "console.h"
+#include "debug.h"
 #include "init.h"
-#include "string.h"
-#include "syscall.h"
 #include "interrupt.h"
+#include "kernel/print.h"
 #include "memory.h"
-#include "thread.h"
 #include "process.h"
 #include "stdio.h"
-#include "kernel/print.h"
+#include "string.h"
+#include "syscall.h"
+#include "thread.h"
 
 // DEBUG ONLY
 #include "rand.h"
@@ -59,7 +59,8 @@ void u_malloc_test(void) {
   for (i = 0; i < test_cnt; i++) {
     size = rand();
     addr = malloc(size);
-    printf("[test malloc %d] malloc %d bytes beginning at 0x%x\n", i, size, (uint32_t)addr);
+    printf("[test malloc %d] malloc %d bytes beginning at 0x%x\n", i, size,
+           (uint32_t)addr);
     s[i] = (uint32_t)addr;
   }
 
@@ -71,13 +72,15 @@ void u_malloc_test(void) {
   for (i = 0; i < u_pa_pool.btmp.btmp_bytes_len; i++) {
     if (old_u_bits[i] != u_pa_pool.btmp.bits[i]) {
       printf("user bits[%d] not match!!\n", i);
-      while(1);
+      while (1)
+        ;
     }
   }
 
   printf("Pass user pa_pool bitmap test.\n");
 
-  while(1);
+  while (1)
+    ;
 }
 
 /*

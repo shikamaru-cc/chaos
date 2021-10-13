@@ -1,16 +1,13 @@
-#include "debug.h"
 #include "ioqueue.h"
-#include "sync.h"
-#include "string.h"
+
+#include "debug.h"
 #include "stdbool.h"
+#include "string.h"
+#include "sync.h"
 
-bool ioq_full(ioqueue_t* ioq) {
-  return ioq->qcount == IOQUEUE_BUFSIZE;
-}
+bool ioq_full(ioqueue_t* ioq) { return ioq->qcount == IOQUEUE_BUFSIZE; }
 
-bool ioq_empty(ioqueue_t* ioq) {
-  return ioq->qcount == 0;
-}
+bool ioq_empty(ioqueue_t* ioq) { return ioq->qcount == 0; }
 
 void ioq_init(ioqueue_t* ioq) {
   lock_init(&ioq->lock);

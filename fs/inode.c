@@ -1,23 +1,27 @@
+#include "inode.h"
+
 #include "debug.h"
+#include "disk.h"
+#include "memory.h"
+#include "partition_manager.h"
 #include "stdbool.h"
 #include "stdint.h"
 #include "stdio.h"
-#include "partition_manager.h"
 #include "stdnull.h"
-#include "disk.h"
-#include "inode.h"
 #include "string.h"
-#include "memory.h"
 #include "super_block.h"
 
 // Public
 void inode_sync(struct inode_elem* inode_elem);
-struct inode_elem* inode_create(struct partition_manager* pmgr, uint32_t inode_no);
-struct inode_elem* inode_open(struct partition_manager* pmgr, uint32_t inode_no);
+struct inode_elem* inode_create(struct partition_manager* pmgr,
+                                uint32_t inode_no);
+struct inode_elem* inode_open(struct partition_manager* pmgr,
+                              uint32_t inode_no);
 void inode_close(struct inode_elem* inode_elem);
 int32_t inode_get_blocks(struct inode_elem* inode_elem, uint32_t nr);
 uint32_t inode_block_used(struct inode_elem* inode_elem);
-uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx);
+uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem,
+                                 uint32_t sec_idx);
 uint32_t inode_idx_to_lba(struct inode_elem* inode_elem, uint32_t sec_idx);
 int32_t inode_read(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf);
 int32_t inode_write(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf);
@@ -51,7 +55,8 @@ void inode_sync(struct inode_elem* inode_elem) {
   sys_free(inode_table);
 }
 
-struct inode_elem* inode_create(struct partition_manager *pmgr, uint32_t inode_no) {
+struct inode_elem* inode_create(struct partition_manager* pmgr,
+                                uint32_t inode_no) {
   if (inode_no >= FS_INODE_CNT) {
     printf("create inode greater than max");
     return NULL;
@@ -80,7 +85,8 @@ struct inode_elem* inode_create(struct partition_manager *pmgr, uint32_t inode_n
 }
 
 // open inode in default file manager
-struct inode_elem* inode_open(struct partition_manager* pmgr, uint32_t inode_no) {
+struct inode_elem* inode_open(struct partition_manager* pmgr,
+                              uint32_t inode_no) {
   if (!validate_inode_no(pmgr, inode_no)) {
     return NULL;
   }
@@ -89,7 +95,7 @@ struct inode_elem* inode_open(struct partition_manager* pmgr, uint32_t inode_no)
   struct inode_elem* inode_elem;
 
   // search cache
-  while(elem != &inode_list.tail) {
+  while (elem != &inode_list.tail) {
     inode_elem = elem2entry(struct inode_elem, inode_tag, elem);
     if (inode_elem->inode.no == inode_no) {
       inode_elem->ref++;
@@ -147,7 +153,7 @@ int32_t inode_get_blocks(struct inode_elem* inode_elem, uint32_t cnt) {
     if (blocks[i] < 0) {
       uint32_t j;
       for (j = 0; j < i; j++) {
-	release_block_no(inode_elem->partmgr, blocks[j]);
+        release_block_no(inode_elem->partmgr, blocks[j]);
       }
       return -1;
     }
@@ -178,7 +184,8 @@ int32_t inode_get_blocks(struct inode_elem* inode_elem, uint32_t cnt) {
       return -1;
     }
 
-    uint32_t ext_block_no = inode_elem->inode.blocks[FS_INODE_EXTEND_BLOCK_INDEX];
+    uint32_t ext_block_no =
+        inode_elem->inode.blocks[FS_INODE_EXTEND_BLOCK_INDEX];
     ASSERT(ext_block_no > 0);
 
     inode_read_ext_blocks(inode_elem, (char*)ext_blocks);
@@ -225,7 +232,7 @@ int32_t inode_get_blocks(struct inode_elem* inode_elem, uint32_t cnt) {
   }
 
   for (i = 0; i < used + cnt - FS_INODE_DIRECT_BLOCKS; i++) {
-    ext_blocks[i] = blocks[i+p];
+    ext_blocks[i] = blocks[i + p];
   }
 
   inode_sync(inode_elem);
@@ -240,7 +247,7 @@ uint32_t inode_block_used(struct inode_elem* inode_elem) {
 
   // count direct
   uint32_t i;
-  for (i = 0; i < FS_INODE_NUM_BLOCKS-1; i++) {
+  for (i = 0; i < FS_INODE_NUM_BLOCKS - 1; i++) {
     if (inode_elem->inode.blocks[i] > 0) {
       cnt++;
     } else {
@@ -269,7 +276,8 @@ uint32_t inode_block_used(struct inode_elem* inode_elem) {
   return cnt;
 }
 
-uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx) {
+uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem,
+                                 uint32_t sec_idx) {
   struct inode* inode = &inode_elem->inode;
 
   if (sec_idx >= FS_INODE_TOTAL_BLOCKS) {
@@ -297,7 +305,7 @@ uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx
   bool exist = true;
   // alloc new block if extend block not exist
   if (inode->blocks[FS_INODE_EXTEND_BLOCK_INDEX] == 0) {
-    exist  = false;
+    exist = false;
     int32_t free_block_lba = get_free_block_no(inode_elem->partmgr);
     if (free_block_lba < 0) {
       return 0;
@@ -375,7 +383,8 @@ int32_t inode_read(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf) {
   return 0;
 }
 
-int32_t inode_write(struct inode_elem *inode_elem, uint32_t sec_idx, char *buf) {
+int32_t inode_write(struct inode_elem* inode_elem, uint32_t sec_idx,
+                    char* buf) {
   uint32_t lba = inode_idx_to_lba(inode_elem, sec_idx);
   if (lba == 0) {
     return -1;

@@ -1,4 +1,5 @@
 #include "bitmap.h"
+
 #include "string.h"
 
 void bitmap_init(struct bitmap* btmp) {

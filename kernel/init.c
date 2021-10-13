@@ -1,18 +1,19 @@
+#include "init.h"
+
 #include "console.h"
 #include "disk.h"
-#include "init.h"
-#include "timer.h"
+#include "fs.h"
 #include "interrupt.h"
+#include "kernel/print.h"
+#include "keyboard.h"
 #include "memory.h"
 #include "syscall.h"
-#include "tss.h"
 #include "thread.h"
-#include "fs.h"
-#include "keyboard.h"
-#include "kernel/print.h"
+#include "timer.h"
+#include "tss.h"
 
 void init_all() {
-  put_str("chaos init ..\n");  
+  put_str("chaos init ..\n");
   idt_init();
   mem_init();
   thread_init();

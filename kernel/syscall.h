@@ -4,12 +4,7 @@
 #include "stdint.h"
 #include "thread.h"
 
-typedef enum {
-  SYS_GETPID,
-  SYS_WRITE,
-  SYS_MALLOC,
-  SYS_FREE
-} SYSCALL_NUMBER;
+typedef enum { SYS_GETPID, SYS_WRITE, SYS_MALLOC, SYS_FREE } SYSCALL_NUMBER;
 
 pid_t getpid(void);
 uint32_t write(char* str);

@@ -1,4 +1,5 @@
 #include "console.h"
+
 #include "kernel/print.h"
 #include "stdint.h"
 #include "sync.h"
@@ -6,9 +7,7 @@
 
 static lock_t console_lock;
 
-void console_init() {
-  lock_init(&console_lock);
-}
+void console_init() { lock_init(&console_lock); }
 
 void console_put_str(char* str) {
   lock_acquire(&console_lock);

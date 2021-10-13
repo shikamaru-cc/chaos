@@ -1,38 +1,39 @@
-#include "debug.h"
 #include "disk.h"
-#include "sync.h"
-#include "string.h"
+
+#include "debug.h"
+#include "interrupt.h"
+#include "kernel/io.h"
+#include "kernel/print.h"
 #include "stdio.h"
 #include "stdnull.h"
-#include "interrupt.h"
-#include "kernel/print.h"
-#include "kernel/io.h"
+#include "string.h"
+#include "sync.h"
 
 // --------------------------- Struct ide_channel --------------------------- //
 // defined in disk.h
 
 // Macros
 
-#define ide_channel_data(ide)     (ide->port_base + 0)
-#define ide_channel_error(ide)    (ide->port_base + 1)
-#define ide_channel_feature(ide)  (ide->port_base + 1)
-#define ide_channel_sec(ide)      (ide->port_base + 2)
-#define ide_channel_lba1(ide)     (ide->port_base + 3)
-#define ide_channel_lba2(ide)     (ide->port_base + 4)
-#define ide_channel_lba3(ide)     (ide->port_base + 5)
-#define ide_channel_dev(ide)      (ide->port_base + 6)
-#define ide_channel_status(ide)   (ide->port_base + 7)
-#define ide_channel_cmd(ide)      (ide->port_base + 7)
+#define ide_channel_data(ide) (ide->port_base + 0)
+#define ide_channel_error(ide) (ide->port_base + 1)
+#define ide_channel_feature(ide) (ide->port_base + 1)
+#define ide_channel_sec(ide) (ide->port_base + 2)
+#define ide_channel_lba1(ide) (ide->port_base + 3)
+#define ide_channel_lba2(ide) (ide->port_base + 4)
+#define ide_channel_lba3(ide) (ide->port_base + 5)
+#define ide_channel_dev(ide) (ide->port_base + 6)
+#define ide_channel_status(ide) (ide->port_base + 7)
+#define ide_channel_cmd(ide) (ide->port_base + 7)
 
-#define IDE_DEV_MBS1    (1 << 7)
+#define IDE_DEV_MBS1 (1 << 7)
 #define IDE_DEV_MOD_LBA (1 << 6)
-#define IDE_DEV_MBS2    (1 << 5)
-#define IDE_DEV_MASTER  (0 << 4)
-#define IDE_DEV_SLAVE   (1 << 4)
+#define IDE_DEV_MBS2 (1 << 5)
+#define IDE_DEV_MASTER (0 << 4)
+#define IDE_DEV_SLAVE (1 << 4)
 
-#define IDE_CMD_READ      0x20
-#define IDE_CMD_WRITE     0x30
-#define IDE_CMD_IDENTIFY  0xEC
+#define IDE_CMD_READ 0x20
+#define IDE_CMD_WRITE 0x30
+#define IDE_CMD_IDENTIFY 0xEC
 
 #define IDE_STATUS_BSY (1 << 7)
 #define IDE_STATUS_DRQ (1 << 3)
@@ -47,19 +48,19 @@ struct ide_channel ide_channels[IDE_MAX_IDE_CHANNLES];
 
 // Private methods
 
-static void ide_channel_setup(struct ide_channel* ide, uint32_t lba, \
-  uint8_t sec_cnt, enum disk_type dt);
+static void ide_channel_setup(struct ide_channel* ide, uint32_t lba,
+                              uint8_t sec_cnt, enum disk_type dt);
 
 static void ide_channel_pio(struct ide_channel* ide);
 
-static void ide_channel_identify(struct ide_channel* ide, enum disk_type dt, \
-  char buf[512]);
+static void ide_channel_identify(struct ide_channel* ide, enum disk_type dt,
+                                 char buf[512]);
 
-static void ide_channel_read(struct ide_channel* ide, uint32_t lba, \
-  uint32_t sec_cnt, enum disk_type dt, void* buf);
+static void ide_channel_read(struct ide_channel* ide, uint32_t lba,
+                             uint32_t sec_cnt, enum disk_type dt, void* buf);
 
-static void ide_channel_write(struct ide_channel* ide, uint32_t lba, \
-  uint32_t sec_cnt, enum disk_type dt, void* buf);
+static void ide_channel_write(struct ide_channel* ide, uint32_t lba,
+                              uint32_t sec_cnt, enum disk_type dt, void* buf);
 
 static void ide_channel_init(uint32_t ide_channel_cnt);
 
@@ -77,8 +78,8 @@ static void disk_swap_pairbytes(char* buf, uint32_t buflen);
 
 static void disk_identify(struct disk* hd);
 
-static void disk_init_per_disk(uint8_t disk_no, struct ide_channel* ide, \
-  enum disk_type dt);
+static void disk_init_per_disk(uint8_t disk_no, struct ide_channel* ide,
+                               enum disk_type dt);
 
 // Public methods
 
@@ -92,9 +93,9 @@ void disk_init(void);
 
 // Private struct for partition entry
 
-#define FS_TYPE_NONE    0x0
-#define FS_TYPE_EXTEND  0x5
-#define FS_TYPE_LINUX   0x83
+#define FS_TYPE_NONE 0x0
+#define FS_TYPE_EXTEND 0x5
+#define FS_TYPE_LINUX 0x83
 
 struct partition_table_entry {
   uint8_t bootable;
@@ -107,18 +108,19 @@ struct partition_table_entry {
   uint8_t end_chs;
   uint32_t lba_start;
   uint32_t sec_cnt;
-} __attribute__ ((packed));
+} __attribute__((packed));
 
 struct boot_sector {
   uint8_t other[446];
   struct partition_table_entry partition_table[4];
-  uint16_t signature; // 0x55, 0xaa
-} __attribute__ ((packed));
+  uint16_t signature;  // 0x55, 0xaa
+} __attribute__((packed));
 
 // Private methods
 
-static struct partition* new_partition(struct disk* hd, uint32_t lba_start, \
-  uint32_t sec_cnt, uint8_t fs_type, uint32_t p_no);
+static struct partition* new_partition(struct disk* hd, uint32_t lba_start,
+                                       uint32_t sec_cnt, uint8_t fs_type,
+                                       uint32_t p_no);
 
 static void partition_scan(struct disk* hd, uint32_t lba);
 
@@ -133,8 +135,8 @@ static void partition_init(void);
 // ide_channel_setup
 // Setup ide channel's sector count, lba and device register before sending
 // command.
-void ide_channel_setup(struct ide_channel* ide, uint32_t lba, \
-  uint8_t sec_cnt, enum disk_type dt) {
+void ide_channel_setup(struct ide_channel* ide, uint32_t lba, uint8_t sec_cnt,
+                       enum disk_type dt) {
   // Write sector count
   outb(ide_channel_sec(ide), sec_cnt);
 
@@ -159,7 +161,7 @@ void ide_channel_setup(struct ide_channel* ide, uint32_t lba, \
 }
 
 // ide_channel_pio
-// Polling ide channel status reg, at most wait for 30 seconds 
+// Polling ide channel status reg, at most wait for 30 seconds
 void ide_channel_pio(struct ide_channel* ide) {
   static uint32_t max_wait_msecs = 30 * 1000;
   static uint32_t sleep_msecs = 10;
@@ -187,8 +189,8 @@ void ide_channel_pio(struct ide_channel* ide) {
   PANIC("ide_channel_pio bug: wait for disk ready over 30 seconds");
 }
 
-static void ide_channel_identify(struct ide_channel* ide, enum disk_type dt, \
-  char buf[512]) {
+static void ide_channel_identify(struct ide_channel* ide, enum disk_type dt,
+                                 char buf[512]) {
   // Write Device
   uint8_t device = IDE_DEV_MBS1 | IDE_DEV_MOD_LBA | IDE_DEV_MBS2;
   if (dt == DISK_MASTER) {
@@ -202,8 +204,8 @@ static void ide_channel_identify(struct ide_channel* ide, enum disk_type dt, \
   insw(ide_channel_data(ide), buf, 256 /* word count */);
 }
 
-void ide_channel_read(struct ide_channel* ide, uint32_t lba, \
-  uint32_t sec_cnt, enum disk_type dt, void* buf) {
+void ide_channel_read(struct ide_channel* ide, uint32_t lba, uint32_t sec_cnt,
+                      enum disk_type dt, void* buf) {
   // Two disk share one channel, we need lock
   lock_acquire(&ide->lock);
 
@@ -238,8 +240,8 @@ void ide_channel_read(struct ide_channel* ide, uint32_t lba, \
   return;
 }
 
-void ide_channel_write(struct ide_channel* ide, uint32_t lba, \
-  uint32_t sec_cnt, enum disk_type dt, void* buf) {
+void ide_channel_write(struct ide_channel* ide, uint32_t lba, uint32_t sec_cnt,
+                       enum disk_type dt, void* buf) {
   // Two disk share one channel, we need lock
   lock_acquire(&ide->lock);
 
@@ -318,8 +320,8 @@ static void disk_swap_pairbytes(char* buf, uint32_t buflen) {
   uint32_t i;
   for (i = 0; i < buflen; i += 2) {
     tmp = buf[i];
-    buf[i] = buf[i+1];
-    buf[i+1] = tmp;
+    buf[i] = buf[i + 1];
+    buf[i + 1] = tmp;
   }
 }
 
@@ -351,8 +353,8 @@ void disk_write(struct disk* hd, void* buf, uint32_t lba, uint32_t sec_cnt) {
   ide_channel_write(hd->ide, lba, sec_cnt, hd->dt, buf);
 }
 
-static void disk_init_per_disk(uint8_t disk_no, struct ide_channel* ide, \
-  enum disk_type dt) {
+static void disk_init_per_disk(uint8_t disk_no, struct ide_channel* ide,
+                               enum disk_type dt) {
   struct disk* hd = &disks[disk_no];
   hd->ide = ide;
   hd->dt = dt;
@@ -393,8 +395,9 @@ done:
   put_str("disk_init done\n");
 }
 
-static struct partition* new_partition(struct disk* hd, uint32_t lba_start, \
-  uint32_t sec_cnt, uint8_t fs_type, uint32_t p_no) {
+static struct partition* new_partition(struct disk* hd, uint32_t lba_start,
+                                       uint32_t sec_cnt, uint8_t fs_type,
+                                       uint32_t p_no) {
   struct partition* p;
   p = (struct partition*)sys_malloc(sizeof(struct partition));
   p->hd = hd;
@@ -422,15 +425,15 @@ static void partition_scan(struct disk* hd, uint32_t lba) {
   for (i = 0; i < 4; i++) {
     pte = &bs->partition_table[i];
     switch (pte->fs_type) {
-    case FS_TYPE_NONE:
-      break;
-    case FS_TYPE_EXTEND:
-      partition_scan(hd, lba + pte->lba_start);
-      break;
-    case FS_TYPE_LINUX:
-      p = new_partition(hd, lba + pte->lba_start, pte->sec_cnt, \
-        FS_TYPE_LINUX, hd->part_cnt++);
-      list_append(&disk_partitions, &p->tag);
+      case FS_TYPE_NONE:
+        break;
+      case FS_TYPE_EXTEND:
+        partition_scan(hd, lba + pte->lba_start);
+        break;
+      case FS_TYPE_LINUX:
+        p = new_partition(hd, lba + pte->lba_start, pte->sec_cnt, FS_TYPE_LINUX,
+                          hd->part_cnt++);
+        list_append(&disk_partitions, &p->tag);
     }
   }
 
@@ -444,17 +447,17 @@ static void partition_string(struct list_elem* elem) {
   ASSERT((p != NULL) && (p->fs_type != FS_TYPE_NONE));
   char type_name[8];
   switch (p->fs_type) {
-  case FS_TYPE_EXTEND:
-    sprintf(type_name, "EXTEND");
-    break;
-  case FS_TYPE_LINUX:
-    sprintf(type_name, "LINUX");
-    break;
+    case FS_TYPE_EXTEND:
+      sprintf(type_name, "EXTEND");
+      break;
+    case FS_TYPE_LINUX:
+      sprintf(type_name, "LINUX");
+      break;
   }
 
-  printf("    %s device:%s start:%d sectors:%d size:%dMB type:%s\n", \
-    p->name, p->hd->name, p->lba_start, p->sec_cnt, \
-    p->sec_cnt * 512 / 1024 / 1024, type_name);
+  printf("    %s device:%s start:%d sectors:%d size:%dMB type:%s\n", p->name,
+         p->hd->name, p->lba_start, p->sec_cnt, p->sec_cnt * 512 / 1024 / 1024,
+         type_name);
 
   return;
 }

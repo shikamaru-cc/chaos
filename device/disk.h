@@ -1,18 +1,15 @@
 #ifndef __DEVICE_DISK_H
 #define __DEVICE_DISK_H
 
+#include "kernel/list.h"
 #include "stdint.h"
 #include "sync.h"
 #include "thread.h"
-#include "kernel/list.h"
 
-enum disk_type {
-  DISK_MASTER,
-  DISK_SLAVE
-};
+enum disk_type { DISK_MASTER, DISK_SLAVE };
 
 struct ide_channel {
-  uint16_t port_base; // Control port base
+  uint16_t port_base;  // Control port base
   uint8_t irq_no;
   lock_t lock;
   sem_t sem;

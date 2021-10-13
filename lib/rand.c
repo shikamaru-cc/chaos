@@ -14,12 +14,9 @@ static uint32_t a = 1234;
 static uint32_t b = 5678;
 static uint32_t m = 20170;
 
-void rand_set_seed(uint32_t seed) {
-  x = seed;
-}
+void rand_set_seed(uint32_t seed) { x = seed; }
 
 uint32_t rand(void) {
   x = (a * x + b) % m;
   return x;
 }
-

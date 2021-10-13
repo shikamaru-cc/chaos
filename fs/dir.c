@@ -1,13 +1,16 @@
 #include "dir.h"
-#include "inode.h"
-#include "string.h"
-#include "stdnull.h"
-#include "memory.h"
-#include "disk.h"
+
 #include <stdint.h>
 
+#include "disk.h"
+#include "inode.h"
+#include "memory.h"
+#include "stdnull.h"
+#include "string.h"
+
 void dir_open_root(struct partition_manager* fsm) {
-  struct inode_elem* root_inode_elem = inode_open(fsm, fsm->sblock->root_inode_no);
+  struct inode_elem* root_inode_elem =
+      inode_open(fsm, fsm->sblock->root_inode_no);
   dir_root.inode_elem = root_inode_elem;
 }
 
@@ -33,16 +36,16 @@ int32_t dir_create_entry(struct dir* parent, struct dir_entry* ent) {
 
       uint32_t j;
       for (j = 0; j < DIR_ENTRY_PER_BLOCK; j++) {
-	// find free slot
+        // find free slot
         if (dents[j].inode_no == 0) {
-	  dents[j].inode_no = ent->inode_no;
-	  dents[j].f_type = ent->f_type;
-	  strcpy(dents[j].filename, ent->filename);
+          dents[j].inode_no = ent->inode_no;
+          dents[j].f_type = ent->f_type;
+          strcpy(dents[j].filename, ent->filename);
 
-	  parent_inode->size++;
-	  inode_sync(parent->inode_elem);
+          parent_inode->size++;
+          inode_sync(parent->inode_elem);
 
-	  inode_write(parent->inode_elem, i, (char*)dents);
+          inode_write(parent->inode_elem, i, (char*)dents);
           sys_free(dents);
           return 0;
         }
@@ -87,25 +90,25 @@ int32_t dir_search(struct dir* parent, char* filename, struct dir_entry* ent) {
     uint32_t j;
     for (j = 0; j < DIR_ENTRY_PER_BLOCK; j++) {
       if (cnt > p_inode->inode.size) {
-	goto fail;
+        goto fail;
       }
 
       if (strcmp(dents[j].filename, filename) == 0) {
-	strcpy(ent->filename, dents[j].filename);
-	ent->f_type = dents[j].f_type;
-	ent->inode_no = dents[j].inode_no;
-	goto success;
+        strcpy(ent->filename, dents[j].filename);
+        ent->f_type = dents[j].f_type;
+        ent->inode_no = dents[j].inode_no;
+        goto success;
       }
 
       cnt++;
     }
   }
 
- fail:
+fail:
   sys_free(dents);
   return -1;
 
- success:
+success:
   sys_free(dents);
   return 0;
 }

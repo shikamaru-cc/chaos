@@ -1,12 +1,13 @@
-#include "debug.h"
 #include "memory.h"
+
+#include "debug.h"
+#include "global.h"
+#include "kernel/print.h"
+#include "stdbool.h"
 #include "stdint.h"
 #include "stdnull.h"
-#include "stdbool.h"
 #include "string.h"
-#include "global.h"
 #include "thread.h"
-#include "kernel/print.h"
 
 #define PG_SIZE 4096
 
@@ -119,7 +120,7 @@ static void* vaddr_get(enum pool_flags pf, uint32_t pg_cnt) {
       return NULL;
     }
 
-    while(cnt < pg_cnt) {
+    while (cnt < pg_cnt) {
       bitmap_set(&cur->u_va_pool.btmp, bit_start_idx + cnt);
       cnt++;
     }
@@ -156,7 +157,7 @@ static void vaddr_free(enum pool_flags pf, void* _vaddr) {
 // (PTE_IDX(vaddr) * 4) : the last 12 bit offset in PTE
 uint32_t* pte_ptr(uint32_t vaddr) {
   return (uint32_t*)(0xffc00000 + (PDE_IDX(vaddr) << 12) +
-            (PTE_IDX(vaddr) * 4));
+                     (PTE_IDX(vaddr) * 4));
 }
 
 // pde_ptr
@@ -260,8 +261,8 @@ void free_page(enum pool_flags pf, void* _vaddr) {
   void* paddr = (void*)va2pa((uint32_t)_vaddr);
 
   if (pf == PF_KERNEL) {
-    ASSERT((uint32_t)paddr >= k_pa_pool.start && \
-      (uint32_t)paddr < u_pa_pool.start);
+    ASSERT((uint32_t)paddr >= k_pa_pool.start &&
+           (uint32_t)paddr < u_pa_pool.start);
   } else {
     ASSERT((uint32_t)paddr >= u_pa_pool.start);
   }
@@ -353,15 +354,15 @@ static void mem_pool_init(uint32_t all_mem) {
   u_pa_pool.size = user_free_pages * PG_SIZE;
 
   uint32_t kp_start = used_mem;
-  uint32_t up_start = kernel_free_pages * PG_SIZE + kp_start ;
+  uint32_t up_start = kernel_free_pages * PG_SIZE + kp_start;
   k_pa_pool.start = kp_start;
   u_pa_pool.start = up_start;
 
   // 3. Init kernel and user bitmap
   // TODO: We don't handle the remainder of calculated bitmap length, it may
   // cause loss of memory, but we don't need to check boundary.
-  uint32_t kbm_length = kernel_free_pages / 8; // byte length of kernel bitmap
-  uint32_t ubm_length = user_free_pages / 8;   // byte length of user bitmap
+  uint32_t kbm_length = kernel_free_pages / 8;  // byte length of kernel bitmap
+  uint32_t ubm_length = user_free_pages / 8;    // byte length of user bitmap
 
   k_pa_pool.btmp.btmp_bytes_len = kbm_length;
   u_pa_pool.btmp.btmp_bytes_len = ubm_length;
@@ -399,8 +400,7 @@ static void mem_pool_init(uint32_t all_mem) {
   // 4. Init kernel virtual address memory pool
   // Kernel virtual addr pool should be same as physiacl memory pool.
   k_va_pool.btmp.btmp_bytes_len = kbm_length;
-  k_va_pool.btmp.bits =
-    (void*)(MEM_BITMAP_BASE + kbm_length + ubm_length);
+  k_va_pool.btmp.bits = (void*)(MEM_BITMAP_BASE + kbm_length + ubm_length);
 
   k_va_pool.start = K_HEAP_START;
   bitmap_init(&k_va_pool.btmp);
@@ -477,8 +477,8 @@ void* sys_malloc(uint32_t size) {
     arena->large = false;
 
     // Add free block to descs' free block list
-    struct mem_block* block = \
-      (struct mem_block*)((uint32_t)arena + sizeof(struct arena));
+    struct mem_block* block =
+        (struct mem_block*)((uint32_t)arena + sizeof(struct arena));
     for (i = 0; i < arena->cnt; i++) {
       ASSERT((uint32_t)block <= (uint32_t)arena + PG_SIZE - mbd->block_size);
       list_append(&mbd->free_list, &block->free_elem);
@@ -486,8 +486,8 @@ void* sys_malloc(uint32_t size) {
     }
   }
 
-  struct mem_block* free_block = \
-    elem2entry(struct mem_block, free_elem, list_pop(&mbd->free_list));
+  struct mem_block* free_block =
+      elem2entry(struct mem_block, free_elem, list_pop(&mbd->free_list));
 
   struct arena* arena = (struct arena*)block2arena(free_block);
   arena->cnt--;
@@ -539,8 +539,7 @@ void sys_free(void* vaddr) {
       ASSERT(elem_find(&mbd->free_list, &free_block->free_elem));
       list_remove(&free_block->free_elem);
       // Iter next block
-      free_block = \
-        (struct mem_block*)((uint32_t)free_block + mbd->block_size);
+      free_block = (struct mem_block*)((uint32_t)free_block + mbd->block_size);
     }
 
     free_page(PF, arena);
@@ -578,11 +577,10 @@ void mem_block_descs_init(struct mem_block_desc descs[MEM_BLOCK_DESC_CNT]) {
     descs[i].block_size = size;
     descs[i].block_cnt_per_arena = (PG_SIZE - sizeof(struct arena)) / size;
 
-    ASSERT((descs[i].block_size * descs[i].block_cnt_per_arena + \
-      sizeof(struct arena)) < PG_SIZE);
+    ASSERT((descs[i].block_size * descs[i].block_cnt_per_arena +
+            sizeof(struct arena)) < PG_SIZE);
 
     list_init(&descs[i].free_list);
     size *= 2;
   }
 }
-

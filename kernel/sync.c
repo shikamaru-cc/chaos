@@ -1,10 +1,11 @@
-#include "debug.h"
 #include "sync.h"
+
+#include "debug.h"
+#include "interrupt.h"
+#include "kernel/list.h"
 #include "stdint.h"
 #include "stdnull.h"
 #include "thread.h"
-#include "interrupt.h"
-#include "kernel/list.h"
 
 // =========================== Semaphore implement ========================== //
 
@@ -46,12 +47,10 @@ void sem_post(sem_t* sem) {
   struct task_struct* thread_blocked;
 
   if (!list_empty(&sem->waiters)) {
-
-    thread_blocked = \
-      elem2entry(struct task_struct, general_tag, list_pop(&sem->waiters));
+    thread_blocked =
+        elem2entry(struct task_struct, general_tag, list_pop(&sem->waiters));
 
     thread_unblock(thread_blocked);
-
   }
 
   sem->value++;
@@ -112,11 +111,9 @@ void cond_signal(cond_t* cond) {
   struct task_struct* thread_blocked;
 
   if (!list_empty(&cond->waitq)) {
-
-    thread_blocked = \
-      elem2entry(struct task_struct, general_tag, list_pop(&cond->waitq));
+    thread_blocked =
+        elem2entry(struct task_struct, general_tag, list_pop(&cond->waitq));
 
     thread_unblock(thread_blocked);
-
   }
 }

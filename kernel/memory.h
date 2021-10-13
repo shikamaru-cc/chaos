@@ -1,10 +1,10 @@
 #ifndef __KERNEL_MEMORY_H
 #define __KERNEL_MEMORY_H
 
-#include "stdint.h"
-#include "spinlock.h"
-#include "kernel/list.h"
 #include "kernel/bitmap.h"
+#include "kernel/list.h"
+#include "spinlock.h"
+#include "stdint.h"
 
 // Kernel base address
 #define K_BASE_ADDR 0xc0000000
@@ -13,14 +13,11 @@
 #define PDE_IDX(addr) (addr >> 22)
 #define PTE_IDX(addr) ((addr << 10) >> 22)
 
-enum pool_flags {
-  PF_KERNEL = 1,
-  PF_USER = 2
-};
+enum pool_flags { PF_KERNEL = 1, PF_USER = 2 };
 
 // PDE and PTE macros
-#define PG_P_0  0
-#define PG_P_1  1
+#define PG_P_0 0
+#define PG_P_1 1
 #define PG_RW_R 0
 #define PG_RW_W (1 << 1)
 #define PG_US_S 0

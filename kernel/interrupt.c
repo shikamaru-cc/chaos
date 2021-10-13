@@ -1,24 +1,25 @@
-#include "global.h"
 #include "interrupt.h"
+
+#include "global.h"
 #include "kernel/io.h"
 #include "kernel/print.h"
 
-#define PIC_M_CTRL  0x20        // Master control port
-#define PIC_M_DATA  0x21        // Master data port
-#define PIC_S_CTRL  0xa0        // Slave control port
-#define PIC_S_DATA  0xa1        // Slave data port
+#define PIC_M_CTRL 0x20  // Master control port
+#define PIC_M_DATA 0x21  // Master data port
+#define PIC_S_CTRL 0xa0  // Slave control port
+#define PIC_S_DATA 0xa1  // Slave data port
 
-#define PIC_M_ICW1  0x11        // ICW1: edge, cascade, need ICW4
-#define PIC_M_ICW2  0x20        // ICW2: init intr num: 0x20
-#define PIC_M_ICW3  0x04        // ICW3: IR2 connect to slave
-#define PIC_M_ICW4  0x01        // ICW4: 8086 mode, no auto EOI
+#define PIC_M_ICW1 0x11  // ICW1: edge, cascade, need ICW4
+#define PIC_M_ICW2 0x20  // ICW2: init intr num: 0x20
+#define PIC_M_ICW3 0x04  // ICW3: IR2 connect to slave
+#define PIC_M_ICW4 0x01  // ICW4: 8086 mode, no auto EOI
 
-#define PIC_S_ICW1  0x11        // ICW1: edge, cascade, need ICW4
-#define PIC_S_ICW2  0x28        // ICW2: init intr num: 0x28
-#define PIC_S_ICW3  0x02        // ICW3: connect to master IR2
-#define PIC_S_ICW4  0x01        // ICW4: 8086 mode, no auto EOI
+#define PIC_S_ICW1 0x11  // ICW1: edge, cascade, need ICW4
+#define PIC_S_ICW2 0x28  // ICW2: init intr num: 0x28
+#define PIC_S_ICW3 0x02  // ICW3: connect to master IR2
+#define PIC_S_ICW4 0x01  // ICW4: 8086 mode, no auto EOI
 
-#define IDT_DESC_CNT 0x81       // num of interrupt types
+#define IDT_DESC_CNT 0x81  // num of interrupt types
 
 struct gate_desc {
   uint16_t func_offset_low_word;
@@ -28,7 +29,7 @@ struct gate_desc {
   uint16_t func_offset_high_word;
 };
 
-static struct gate_desc idt[IDT_DESC_CNT]; // interrupt descriptor table
+static struct gate_desc idt[IDT_DESC_CNT];  // interrupt descriptor table
 
 // intr_entry_table is the entry point of interrupt, define in kernel.asm, it
 // will call the actual handler in intr_handler_table
@@ -53,21 +54,19 @@ static void general_intr_handler(uint8_t intr_n) {
 
   if (intr_n == 14) {
     int32_t addr;
-    asm volatile(
-      "movl %%cr2, %%eax"
-      : "=a" (addr)
-    );
+    asm volatile("movl %%cr2, %%eax" : "=a"(addr));
     put_str("page fault address : ");
     put_int(addr);
   }
 
-  while(1);
+  while (1)
+    ;
 }
 
 // =========================== Init IDT and PIC ============================= //
 
-static void make_idt_desc(struct gate_desc* p_gdesc,
-                          uint8_t attr, intr_handler fn) {
+static void make_idt_desc(struct gate_desc* p_gdesc, uint8_t attr,
+                          intr_handler fn) {
   p_gdesc->func_offset_low_word = (uint32_t)fn & 0x0000FFFF;
   p_gdesc->selector = SELECTOR_K_CODE;
   p_gdesc->dcount = 0;
@@ -83,16 +82,16 @@ static void exception_init(void) {
     intr_name[i] = "Unknown";
   }
   // initial interrupt name
-  intr_name[ 0] = "Division by zero";
-  intr_name[ 1] = "Single-step interrupt (see trap flag)";
-  intr_name[ 2] = "NMI";
-  intr_name[ 3] = "Breakpoint (0xCC encoding of INT3)";
-  intr_name[ 4] = "Overflow";
-  intr_name[ 5] = "Bound Range Exceeded";
-  intr_name[ 6] = "Invalid Opcode";
-  intr_name[ 7] = "Coprocessor not available";
-  intr_name[ 8] = "Double Fault";
-  intr_name[ 9] = "Coprocessor Segment Overrun (386 or earlier only)";
+  intr_name[0] = "Division by zero";
+  intr_name[1] = "Single-step interrupt (see trap flag)";
+  intr_name[2] = "NMI";
+  intr_name[3] = "Breakpoint (0xCC encoding of INT3)";
+  intr_name[4] = "Overflow";
+  intr_name[5] = "Bound Range Exceeded";
+  intr_name[6] = "Invalid Opcode";
+  intr_name[7] = "Coprocessor not available";
+  intr_name[8] = "Double Fault";
+  intr_name[9] = "Coprocessor Segment Overrun (386 or earlier only)";
   intr_name[10] = "Invalid Task State Segment";
   intr_name[11] = "Segment not present";
   intr_name[12] = "Stack Segment Fault";
@@ -124,7 +123,6 @@ static void idt_desc_init(void) {
 
 // init pic 8259A
 static void pic_init(void) {
-
   // init master
   outb(PIC_M_CTRL, PIC_M_ICW1);
   outb(PIC_M_DATA, PIC_M_ICW2);
@@ -152,14 +150,15 @@ void idt_init(void) {
   pic_init();
 
   // load idt
-  uint64_t idt_operand = ((sizeof(idt) - 1)|((uint64_t)((uint32_t)idt << 16)));
-  asm volatile("lidt %0": : "m" (idt_operand));
+  uint64_t idt_operand =
+      ((sizeof(idt) - 1) | ((uint64_t)((uint32_t)idt << 16)));
+  asm volatile("lidt %0" : : "m"(idt_operand));
   put_str("idt_init done\n");
 }
 
 // ================= Utils for handling flags and handlers ================== //
 
-#define EFLAGS_IF   0x00000200
+#define EFLAGS_IF 0x00000200
 #define GET_EFLAGS(EFLAG_VAR) asm volatile("pushfl; popl %0" : "=g"(EFLAG_VAR))
 
 // set interrupt flag and return old status

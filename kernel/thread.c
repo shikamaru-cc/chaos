@@ -1,14 +1,15 @@
-#include "debug.h"
 #include "thread.h"
-#include "sync.h"
+
+#include "debug.h"
+#include "interrupt.h"
+#include "kernel/list.h"
+#include "kernel/print.h"
+#include "memory.h"
+#include "process.h"
 #include "stdint.h"
 #include "stdnull.h"
 #include "string.h"
-#include "memory.h"
-#include "interrupt.h"
-#include "process.h"
-#include "kernel/list.h"
-#include "kernel/print.h"
+#include "sync.h"
 
 // --
 // global variable
@@ -40,22 +41,15 @@ struct task_struct* running_thread();
 
 static void kernel_thread(thread_func* function, void* func_arg);
 
-void thread_create(
-  struct task_struct* pthread,
-  thread_func function,
-  void* func_arg
-);
+void thread_create(struct task_struct* pthread, thread_func function,
+                   void* func_arg);
 
 pid_t alloc_pid(void);
 
 void task_init(struct task_struct* pthread, char* name, int prio);
 
-struct task_struct* thread_start(
-  char* name,
-  int prio,
-  thread_func function,
-  void* func_arg
-);
+struct task_struct* thread_start(char* name, int prio, thread_func function,
+                                 void* func_arg);
 
 void thread_block(enum task_status stat);
 
@@ -76,10 +70,7 @@ void schedule();
 // part of esp is the page virtual address, so the PCB ptr.
 struct task_struct* running_thread() {
   uint32_t esp;
-  asm volatile(
-  "mov %%esp, %0"
-  : "=g"(esp)
-  );
+  asm volatile("mov %%esp, %0" : "=g"(esp));
   return (struct task_struct*)(esp & 0xfffff000);
 }
 
@@ -91,8 +82,7 @@ static void kernel_thread(thread_func* function, void* func_arg) {
 // thread_create
 // Setup thread kernel stack. We need to save space for interrupt stack before
 // we make progress.
-void thread_create(struct task_struct* pthread,
-                   thread_func function,
+void thread_create(struct task_struct* pthread, thread_func function,
                    void* func_arg) {
   // interrupt stack space
   pthread->self_kstack -= sizeof(struct intr_stack);
@@ -106,7 +96,6 @@ void thread_create(struct task_struct* pthread,
   // Callee saved registers
   k_stack->ebp = k_stack->ebx = k_stack->edi = k_stack->esi = 0;
 }
-
 
 pid_t alloc_pid(void) {
   static pid_t next_pid = 0;
@@ -136,9 +125,9 @@ void task_init(struct task_struct* pthread, char* name, int prio) {
   pthread->pgdir = NULL;
 
   // init file descriptors
-  pthread->fd_table[0] = 0; // stdin
-  pthread->fd_table[1] = 1; // stdout
-  pthread->fd_table[2] = 2; // stderr
+  pthread->fd_table[0] = 0;  // stdin
+  pthread->fd_table[1] = 1;  // stdout
+  pthread->fd_table[2] = 2;  // stderr
   // other fds set to -1
   int i;
   for (i = 3; i < MAX_PROC_OPEN_FD; i++) {
@@ -151,9 +140,7 @@ void task_init(struct task_struct* pthread, char* name, int prio) {
 // thread_start
 // Call task_init and thread_create to setup thread PCB and kernel stack, then
 // add thread PCB to thread_ready_list and thread_all_list.
-struct task_struct* thread_start(char* name,
-                                 int prio,
-                                 thread_func function,
+struct task_struct* thread_start(char* name, int prio, thread_func function,
                                  void* func_arg) {
   struct task_struct* thread = get_kernel_pages(1);
 
@@ -175,8 +162,7 @@ struct task_struct* thread_start(char* name,
 // This function is called by current thread to block itself, set its status as
 // stat.
 void thread_block(enum task_status stat) {
-  ASSERT((stat == TASK_BLOCKED) ||
-         (stat == TASK_WAITING) ||
+  ASSERT((stat == TASK_BLOCKED) || (stat == TASK_WAITING) ||
          (stat == TASK_HANGING));
 
   enum intr_status old_status = intr_disable();
@@ -225,7 +211,7 @@ static void make_main_thread(void) {
 }
 
 static void idle(void* UNUSED_ARG) {
-  while(1) {
+  while (1) {
     thread_block(TASK_BLOCKED);
     // Must open interrupt when hlt
     asm volatile("sti; hlt" : : : "memory");
@@ -269,11 +255,10 @@ void schedule() {
   thread_tag = list_pop(&thread_ready_list);
 
   // Get PCB ptr by general_tag
-  struct task_struct* next = \
-    elem2entry(struct task_struct, general_tag, thread_tag);
+  struct task_struct* next =
+      elem2entry(struct task_struct, general_tag, thread_tag);
 
   next->status = TASK_RUNNING;
   process_activate(next);
   switch_to(cur, next);
 }
-

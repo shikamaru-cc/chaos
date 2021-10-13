@@ -1,13 +1,13 @@
 #ifndef __KERNEL_LIST_H
 #define __KERNEL_LIST_H
-#include "stdint.h"
 #include "stdbool.h"
+#include "stdint.h"
 
 // offset of a member in struct type
 #define offset(struct_type, member) ((int)(&((struct_type*)0)->member))
 // given a member ptr in a struct, return the struct ptr
 #define elem2entry(struct_type, member, elem_ptr) \
-          ((struct_type*)((int)elem_ptr - offset(struct_type, member)))
+  ((struct_type*)((int)elem_ptr - offset(struct_type, member)))
 
 struct list_elem {
   struct list_elem* prev;
@@ -19,8 +19,8 @@ struct list {
   struct list_elem tail;
 };
 
-typedef bool (function) (struct list_elem*, int arg);
-typedef void (list_iter_fn) (struct list_elem*);
+typedef bool(function)(struct list_elem*, int arg);
+typedef void(list_iter_fn)(struct list_elem*);
 
 void list_init(struct list*);
 void list_insert_before(struct list_elem* before, struct list_elem* elem);

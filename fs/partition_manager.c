@@ -1,11 +1,12 @@
-#include "debug.h"
-#include "kernel/bitmap.h"
-#include "stdnull.h"
-#include "stdint.h"
-#include "stdbool.h"
-#include "memory.h"
-#include "disk.h"
 #include "partition_manager.h"
+
+#include "debug.h"
+#include "disk.h"
+#include "kernel/bitmap.h"
+#include "memory.h"
+#include "stdbool.h"
+#include "stdint.h"
+#include "stdnull.h"
 #include "super_block.h"
 
 int32_t get_free_inode_no(struct partition_manager* pmgr);
@@ -17,7 +18,7 @@ void release_block_no(struct partition_manager* pmgr, int32_t block_no);
 void sync_block_btmp(struct partition_manager* pmgr);
 
 // IMPLEMENTATION
- 
+
 // NOTE: fs_alloc_inode_no and fs_free_inode_no only modify inode bitmap in
 // memory with no operation with disk.
 int32_t get_free_inode_no(struct partition_manager* pmgr) {
@@ -78,5 +79,6 @@ void release_block_no(struct partition_manager* pmgr, int32_t block_no) {
 }
 
 void sync_block_btmp(struct partition_manager* pmgr) {
-  disk_write(pmgr->part->hd, pmgr->block_btmp.bits, pmgr->sblock->block_btmp_lba, pmgr->sblock->block_btmp_secs);
+  disk_write(pmgr->part->hd, pmgr->block_btmp.bits,
+             pmgr->sblock->block_btmp_lba, pmgr->sblock->block_btmp_secs);
 }

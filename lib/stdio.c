@@ -1,8 +1,9 @@
+#include "stdio.h"
+
 #include "stdint.h"
+#include "stdnull.h"
 #include "string.h"
 #include "syscall.h"
-#include "stdio.h"
-#include "stdnull.h"
 
 // --
 // Variable argument
@@ -69,27 +70,27 @@ uint32_t vsprintf(char* str, const char* format, va_list ap) {
     char* vstr;
 
     switch (ch) {
-    case 'x':
-      vint = va_arg(ap, int);
-      itoa(vint, &buf_ptr, 16);
-      break;
-    case 'd':
-      vint = va_arg(ap, int);
-      if (vint < 0) {
-        vint = -vint;
-        *buf_ptr++ = '-';
-      }
-      itoa(vint, &buf_ptr, 10);
-      break;
-    case 'c':
-      vchar = va_arg(ap, char);
-      *buf_ptr++ = vchar;
-      break;
-    case 's':
-      vstr = va_arg(ap, char*);
-      strcpy(buf_ptr, vstr);
-      buf_ptr += strlen(buf_ptr);
-      break;
+      case 'x':
+        vint = va_arg(ap, int);
+        itoa(vint, &buf_ptr, 16);
+        break;
+      case 'd':
+        vint = va_arg(ap, int);
+        if (vint < 0) {
+          vint = -vint;
+          *buf_ptr++ = '-';
+        }
+        itoa(vint, &buf_ptr, 10);
+        break;
+      case 'c':
+        vchar = va_arg(ap, char);
+        *buf_ptr++ = vchar;
+        break;
+      case 's':
+        vstr = va_arg(ap, char*);
+        strcpy(buf_ptr, vstr);
+        buf_ptr += strlen(buf_ptr);
+        break;
     }
 
     format++;
@@ -117,4 +118,3 @@ uint32_t sprintf(char* dst, const char* format, ...) {
   va_end(args);
   return ret;
 }
-

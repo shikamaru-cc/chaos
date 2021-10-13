@@ -8,10 +8,10 @@
 // | bootsec | super block | block bitmap | inode bitmap | inode table | data |
 // ----------------------------------------------------------------------------
 
-#define BLOCK_SECS         1 // A block consists of a sector
-#define BLOCK_SIZE         (BLOCK_SECS * 512)
-#define BLOCK_BITS         (BLOCK_SECS * 512 * 8)
-#define SUPER_BLOCK_MAGIC  0x19970322
+#define BLOCK_SECS 1  // A block consists of a sector
+#define BLOCK_SIZE (BLOCK_SECS * 512)
+#define BLOCK_BITS (BLOCK_SECS * 512 * 8)
+#define SUPER_BLOCK_MAGIC 0x19970322
 
 struct super_block {
   uint32_t magic;
@@ -33,6 +33,6 @@ struct super_block {
   uint32_t dir_entry_size;
 
   uint8_t pad[460];
-} __attribute__ ((packed));
+} __attribute__((packed));
 
 #endif

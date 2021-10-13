@@ -1,9 +1,9 @@
 #ifndef __KERNEL_SYNC_H
 #define __KERNEL_SYNC_H
 
+#include "kernel/list.h"
 #include "stdint.h"
 #include "thread.h"
-#include "kernel/list.h"
 
 typedef struct {
   uint8_t value;

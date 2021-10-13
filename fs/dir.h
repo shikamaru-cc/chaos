@@ -1,8 +1,8 @@
 #ifndef __FS_DIR_H
 #define __FS_DIR_H
 
-#include "stdint.h"
 #include "partition_manager.h"
+#include "stdint.h"
 
 enum file_type {
   TYPE_DIR,
@@ -14,10 +14,10 @@ struct dir_entry {
   char filename[FS_MAX_FILENAME];
   enum file_type f_type;
   uint32_t inode_no;
-} __attribute__ ((packed));
+} __attribute__((packed));
 
 #define DIR_ENTRY_PER_BLOCK (BLOCK_SIZE / (sizeof(struct dir_entry)))
-#define DIR_MAX_ENTRY       (DIR_ENTRY_PER_BLOCK * FS_INODE_TOTAL_BLOCKS)
+#define DIR_MAX_ENTRY (DIR_ENTRY_PER_BLOCK * FS_INODE_TOTAL_BLOCKS)
 
 struct dir {
   struct inode_elem* inode_elem;

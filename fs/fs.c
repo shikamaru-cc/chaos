@@ -1,18 +1,19 @@
 #include "fs.h"
+
 #include "debug.h"
 #include "disk.h"
-#include "kernel/bitmap.h"
-#include "partition_manager.h"
-#include "kernel/list.h"
-#include "stdio.h"
-#include "stdint.h"
-#include "string.h"
-#include "stdnull.h"
-#include "stdbool.h"
 #include "global.h"
-#include "thread.h"
-#include "memory.h"
 #include "inode.h"
+#include "kernel/bitmap.h"
+#include "kernel/list.h"
+#include "memory.h"
+#include "partition_manager.h"
+#include "stdbool.h"
+#include "stdint.h"
+#include "stdio.h"
+#include "stdnull.h"
+#include "string.h"
+#include "thread.h"
 
 bool fs_load(struct partition_manager* fsm, struct partition* part);
 void fs_make(struct partition_manager* fsm, struct partition* part);
@@ -44,13 +45,15 @@ bool fs_load(struct partition_manager* fsm, struct partition* part) {
   struct bitmap* inode_btmp_ptr = &fsm->inode_btmp;
   inode_btmp_ptr->btmp_bytes_len = sblock->inode_btmp_secs * 512;
   inode_btmp_ptr->bits = (uint8_t*)sys_malloc(inode_btmp_ptr->btmp_bytes_len);
-  disk_read(part->hd, inode_btmp_ptr->bits, sblock->inode_btmp_lba, sblock->inode_btmp_secs);
+  disk_read(part->hd, inode_btmp_ptr->bits, sblock->inode_btmp_lba,
+            sblock->inode_btmp_secs);
 
   // Load block bitmap
   struct bitmap* block_btmp_ptr = &fsm->block_btmp;
   block_btmp_ptr->btmp_bytes_len = sblock->block_btmp_secs * 512;
   block_btmp_ptr->bits = (uint8_t*)sys_malloc(block_btmp_ptr->btmp_bytes_len);
-  disk_read(part->hd, block_btmp_ptr->bits, sblock->block_btmp_lba, sblock->block_btmp_secs);
+  disk_read(part->hd, block_btmp_ptr->bits, sblock->block_btmp_lba,
+            sblock->block_btmp_secs);
 
   return true;
 }
@@ -72,16 +75,15 @@ void fs_make(struct partition_manager* fsm, struct partition* part) {
   sblock->part_lba_start = part->lba_start;
 
   sblock->block_btmp_lba = part->lba_start + 1 + BLOCK_SECS;
-  sblock->block_btmp_secs = \
-    DIV_ROUND_UP(part->sec_cnt / BLOCK_SECS, BLOCK_BITS) * BLOCK_SECS;
+  sblock->block_btmp_secs =
+      DIV_ROUND_UP(part->sec_cnt / BLOCK_SECS, BLOCK_BITS) * BLOCK_SECS;
 
   sblock->inode_btmp_lba = sblock->block_btmp_lba + sblock->block_btmp_secs;
-  sblock->inode_btmp_secs = \
-    DIV_ROUND_UP(FS_INODE_CNT, BLOCK_BITS) * BLOCK_SECS;
+  sblock->inode_btmp_secs = DIV_ROUND_UP(FS_INODE_CNT, BLOCK_BITS) * BLOCK_SECS;
 
   sblock->inode_table_lba = sblock->inode_btmp_lba + sblock->inode_btmp_secs;
-  sblock->inode_table_secs = \
-    DIV_ROUND_UP(FS_INODE_CNT, FS_INODE_TABLES_BLOCK_CNT) * BLOCK_SECS;
+  sblock->inode_table_secs =
+      DIV_ROUND_UP(FS_INODE_CNT, FS_INODE_TABLES_BLOCK_CNT) * BLOCK_SECS;
 
   sblock->data_lba = sblock->inode_table_lba + sblock->inode_table_secs;
   sblock->root_inode_no = 0;
@@ -102,7 +104,8 @@ void fs_make(struct partition_manager* fsm, struct partition* part) {
   bitmap_set(inode_btmp_ptr, sblock->root_inode_no);
 
   // flush all inode bitmap
-  disk_write(part->hd, inode_btmp_ptr->bits, sblock->inode_btmp_lba, sblock->inode_btmp_secs);
+  disk_write(part->hd, inode_btmp_ptr->bits, sblock->inode_btmp_lba,
+             sblock->inode_btmp_secs);
 
   // Init block bitmap
   struct bitmap* block_btmp_ptr = &fsm->block_btmp;
@@ -125,7 +128,8 @@ void fs_make(struct partition_manager* fsm, struct partition* part) {
   }
 
   // flush all block bitmap
-  disk_write(part->hd, block_btmp_ptr->bits, sblock->block_btmp_lba, sblock->block_btmp_secs);
+  disk_write(part->hd, block_btmp_ptr->bits, sblock->block_btmp_lba,
+             sblock->block_btmp_secs);
 
   // init root dir
   struct inode_elem root_inode_elem;
@@ -174,8 +178,9 @@ void fs_init(void) {
 
   struct dir_entry de2;
   dir_search(&dir_root, "shikamaru", &de2);
-  printf("filename: %s, type: %d, inode_no: %d", de2.filename, de2.f_type, de2.inode_no);
-  
+  printf("filename: %s, type: %d, inode_no: %d", de2.filename, de2.f_type,
+         de2.inode_no);
+
   // FIXME: end test code
 
   printf("  mount %s as default file system\n", cur_partition.part->name);

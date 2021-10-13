@@ -6,9 +6,9 @@ void panic_spin(char* filename, int line, const char* fn, const char* cond);
 
 #ifdef DEBUG
 #define ASSERT(CONDITION) \
-if(!(CONDITION)) {          \
-  PANIC(#CONDITION);      \
-}
+  if (!(CONDITION)) {     \
+    PANIC(#CONDITION);    \
+  }
 #else
 #define ASSERT(CONDITION) ((void)0)
 #endif
