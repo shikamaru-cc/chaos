@@ -4,43 +4,66 @@
 #include "stdnull.h"
 #include "memory.h"
 #include "disk.h"
+#include <stdint.h>
 
 void dir_open_root(struct partition_manager* fsm) {
   struct inode_elem* root_inode_elem = inode_open(fsm, fsm->sblock->root_inode_no);
   dir_root.inode_elem = root_inode_elem;
 }
 
-int32_t dir_append_entry(struct dir* parent, struct dir_entry* ent) {
+int32_t dir_create_entry(struct dir* parent, struct dir_entry* ent) {
   struct inode* parent_inode = &parent->inode_elem->inode;
   if (parent_inode->size >= DIR_MAX_ENTRY) {
     return -1;
   }
 
-  uint32_t pos = parent_inode->size;
-
-  int32_t sec_idx = pos / DIR_ENTRY_PER_BLOCK;
-  int32_t sec_off = pos % DIR_ENTRY_PER_BLOCK;
-
-  uint32_t block_lba = inode_get_or_create_sec(parent->inode_elem, sec_idx);
-  if (block_lba == 0) {
+  struct dir_entry* dents = (struct dir_entry*)sys_malloc(BLOCK_SIZE);
+  if (dents == NULL) {
     return -1;
   }
 
-  struct dir_entry* dents = (struct dir_entry*)sys_malloc(BLOCK_SIZE);
+  uint32_t block_used = inode_block_used(parent->inode_elem);
+  uint32_t slot = block_used * DIR_ENTRY_PER_BLOCK;
 
-  struct partition_manager* fsm = parent->inode_elem->partmgr;
-  uint32_t real_lba = block_lba + fsm->part->lba_start;
-  disk_read(fsm->part->hd, dents, real_lba, BLOCK_SECS);
+  // has free slot
+  if (parent_inode->size < slot) {
+    uint32_t i;
+    for (i = 0; i < block_used; i++) {
+      inode_read(parent->inode_elem, i, (char*)dents);
 
-  memcpy(&dents[sec_off], ent, sizeof(struct dir_entry));
+      uint32_t j;
+      for (j = 0; j < DIR_ENTRY_PER_BLOCK; j++) {
+	// find free slot
+        if (dents[j].inode_no == 0) {
+	  dents[j].inode_no = ent->inode_no;
+	  dents[j].f_type = ent->f_type;
+	  strcpy(dents[j].filename, ent->filename);
 
-  // sync inode table and data
+	  parent_inode->size++;
+	  inode_sync(parent->inode_elem);
+
+	  inode_write(parent->inode_elem, i, (char*)dents);
+          sys_free(dents);
+          return 0;
+        }
+      }
+    }
+  }
+
+  // no free slot
+  inode_get_blocks(parent->inode_elem, 1);
+  memset(dents, 0, BLOCK_SIZE);
+
+  dents[0].inode_no = ent->inode_no;
+  dents[0].f_type = ent->f_type;
+  strcpy(dents[0].filename, ent->filename);
+  inode_write(parent->inode_elem, block_used, (char*)dents);
+
   parent_inode->size++;
   inode_sync(parent->inode_elem);
-  disk_write(fsm->part->hd, dents, real_lba, BLOCK_SECS);
 
   sys_free(dents);
-  return 1;
+  return 0;
 }
 
 int32_t dir_search(struct dir* parent, char* filename, struct dir_entry* ent) {
