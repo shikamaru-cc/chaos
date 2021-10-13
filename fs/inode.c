@@ -10,16 +10,23 @@
 #include "memory.h"
 #include "super_block.h"
 
+// Public
 void inode_sync(struct inode_elem* inode_elem);
 struct inode_elem* inode_create(struct partition_manager* pmgr, uint32_t inode_no);
 struct inode_elem* inode_open(struct partition_manager* pmgr, uint32_t inode_no);
 void inode_close(struct inode_elem* inode_elem);
+int32_t inode_get_blocks(struct inode_elem* inode_elem, uint32_t nr);
 uint32_t inode_block_used(struct inode_elem* inode_elem);
 uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx);
 uint32_t inode_idx_to_lba(struct inode_elem* inode_elem, uint32_t sec_idx);
 int32_t inode_read(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf);
 int32_t inode_write(struct inode_elem* inode_elem, uint32_t sec_idx, char* buf);
 
+// Private
+int32_t inode_read_ext_blocks(struct inode_elem* inode_elem, char* buf);
+int32_t inode_write_ext_blocks(struct inode_elem* inode_elem, char* buf);
+
+// Implementation
 void inode_sync(struct inode_elem* inode_elem) {
   struct inode* inode = &inode_elem->inode;
   struct partition_manager* pmgr = inode_elem->partmgr;
@@ -125,6 +132,109 @@ void inode_close(struct inode_elem* inode_elem) {
   }
 }
 
+int32_t inode_get_blocks(struct inode_elem* inode_elem, uint32_t cnt) {
+  uint32_t used = inode_block_used(inode_elem);
+  if (used + cnt > FS_INODE_TOTAL_BLOCKS) {
+    printf("inode_get_blocks: exceed max blocks\n");
+    return -1;
+  }
+
+  int32_t blocks[cnt];
+  uint32_t i;
+  for (i = 0; i < cnt; i++) {
+    blocks[i] = get_free_block_no(inode_elem->partmgr);
+    // Not enough blocks, rollback
+    if (blocks[i] < 0) {
+      uint32_t j;
+      for (j = 0; j < i; j++) {
+	release_block_no(inode_elem->partmgr, blocks[j]);
+      }
+      return -1;
+    }
+  }
+
+  // not use all direct blocks
+  if (used + cnt <= FS_INODE_DIRECT_BLOCKS) {
+    for (i = 0; i < cnt; i++) {
+      inode_elem->inode.blocks[i + used] = blocks[i];
+    }
+
+    inode_sync(inode_elem);
+    sync_block_btmp(inode_elem->partmgr);
+
+    return 0;
+  }
+
+  // now we need to use extend block
+
+  // we have used extend block
+  if (used > FS_INODE_DIRECT_BLOCKS) {
+    uint32_t* ext_blocks = (uint32_t*)sys_malloc(BLOCK_SIZE);
+    if (ext_blocks == NULL) {
+      // rollback if fail
+      for (i = 0; i < cnt; i++) {
+        release_block_no(inode_elem->partmgr, blocks[i]);
+      }
+      return -1;
+    }
+
+    uint32_t ext_block_no = inode_elem->inode.blocks[FS_INODE_EXTEND_BLOCK_INDEX];
+    ASSERT(ext_block_no > 0);
+
+    inode_read_ext_blocks(inode_elem, (char*)ext_blocks);
+
+    uint32_t ext_used = used - FS_INODE_DIRECT_BLOCKS;
+    for (i = 0; i < cnt; i++) {
+      ext_blocks[i + ext_used] = blocks[i];
+    }
+
+    inode_write_ext_blocks(inode_elem, (char*)ext_blocks);
+    sync_block_btmp(inode_elem->partmgr);
+
+    return 0;
+  }
+
+  // now we should write both direct block and extend block
+
+  // create extend block
+  uint32_t* ext_blocks = (uint32_t*)sys_malloc(BLOCK_SIZE);
+  if (ext_blocks == NULL) {
+    // rollback if fail
+    for (i = 0; i < cnt; i++) {
+      release_block_no(inode_elem->partmgr, blocks[i]);
+    }
+    return -1;
+  }
+  memset(ext_blocks, 0, BLOCK_SIZE);
+
+  int32_t ext_block_no = get_free_block_no(inode_elem->partmgr);
+  if (ext_block_no < 0) {
+    // rollback if fail
+    sys_free(ext_blocks);
+    for (i = 0; i < cnt; i++) {
+      release_block_no(inode_elem->partmgr, blocks[i]);
+    }
+    return -1;
+  }
+  inode_elem->inode.blocks[FS_INODE_EXTEND_BLOCK_INDEX] = ext_block_no;
+
+  uint32_t p = 0;
+  for (i = used; i < FS_INODE_DIRECT_BLOCKS; i++) {
+    inode_elem->inode.blocks[i] = blocks[p];
+    p++;
+  }
+
+  for (i = 0; i < used + cnt - FS_INODE_DIRECT_BLOCKS; i++) {
+    ext_blocks[i] = blocks[i+p];
+  }
+
+  inode_sync(inode_elem);
+  inode_write_ext_blocks(inode_elem, (char*)ext_blocks);
+  sync_block_btmp(inode_elem->partmgr);
+
+  return 0;
+}
+
 uint32_t inode_block_used(struct inode_elem* inode_elem) {
   uint32_t cnt = 0;
 
@@ -146,7 +256,7 @@ uint32_t inode_block_used(struct inode_elem* inode_elem) {
   // has indirect block
   uint32_t* ext_blocks;
   ext_blocks = (uint32_t*)sys_malloc(BLOCK_SIZE);
-  inode_read(inode_elem, FS_INODE_EXTEND_BLOCK_INDEX, (char*)ext_blocks);
+  inode_read_ext_blocks(inode_elem, (char*)ext_blocks);
 
   for (i = 0; i < FS_INODE_EXTEND_BLOCK_CNT; i++) {
     if (ext_blocks[i] == 0) {
@@ -274,4 +384,24 @@ int32_t inode_write(struct inode_elem *inode_elem, uint32_t sec_idx, char *buf) 
   uint32_t real_lba = pmgr->part->lba_start + lba;
   disk_write(pmgr->part->hd, buf, real_lba, BLOCK_SECS);
   return 0;
+}
+
+int32_t inode_read_ext_blocks(struct inode_elem* inode_elem, char* buf) {
+  int32_t idx = inode_elem->inode.blocks[FS_INODE_EXTEND_BLOCK_INDEX];
+  if (idx == 0) {
+    return -1;
+  }
+  uint32_t real_lba = inode_elem->partmgr->part->lba_start + idx;
+  disk_read(inode_elem->partmgr->part->hd, buf, real_lba, BLOCK_SECS);
+  return 1;
+}
+
+int32_t inode_write_ext_blocks(struct inode_elem* inode_elem, char* buf) {
+  int32_t idx = inode_elem->inode.blocks[FS_INODE_EXTEND_BLOCK_INDEX];
+  if (idx == 0) {
+    return -1;
+  }
+  uint32_t real_lba = inode_elem->partmgr->part->lba_start + idx;
+  disk_write(inode_elem->partmgr->part->hd, buf, real_lba, BLOCK_SECS);
+  return 1;
 }

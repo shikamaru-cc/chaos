@@ -18,6 +18,7 @@ struct partition_manager {
 struct partition_manager cur_partition;
 
 #define FS_INODE_NUM_BLOCKS                13
+#define FS_INODE_DIRECT_BLOCKS             12
 #define FS_INODE_TOTAL_BLOCKS              (12 + BLOCK_SIZE / (sizeof(uint32_t)))
 #define FS_INODE_EXTEND_BLOCK_INDEX        12
 #define FS_INODE_EXTEND_BLOCK_CNT          (BLOCK_SIZE / (sizeof(uint32_t)))

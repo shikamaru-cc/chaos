@@ -1,6 +1,7 @@
 #ifndef __FS_INODE_H
 #define __FS_INODE_H
 
+#include "stdbool.h"
 #include "stdint.h"
 #include "kernel/list.h"
 #include "partition_manager.h"
@@ -26,6 +27,7 @@ extern void inode_sync(struct inode_elem* inode_elem);
 extern struct inode_elem* inode_create(struct partition_manager* pmgr, uint32_t inode_no);
 extern struct inode_elem* inode_open(struct partition_manager* pmgr, uint32_t inode_no);
 extern void inode_close(struct inode_elem* inode_elem);
+extern int32_t inode_get_blocks(struct inode_elem* inode_elem, uint32_t nr);
 extern uint32_t inode_block_used(struct inode_elem* inode_elem);
 extern uint32_t inode_get_or_create_sec(struct inode_elem* inode_elem, uint32_t sec_idx);
 extern uint32_t inode_idx_to_lba(struct inode_elem* inode_elem, uint32_t sec_idx);
