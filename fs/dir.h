@@ -25,8 +25,9 @@ struct dir {
 
 struct dir dir_root;
 
-void dir_open_root(struct partition_manager* fsm);
-int32_t dir_create_entry(struct dir* parent, struct dir_entry* ent);
-int32_t dir_search(struct dir* parent, char* filename, struct dir_entry* ent);
+extern void dir_open_root(struct partition_manager* fsm);
+extern int32_t dir_create_entry(struct dir* parent, struct dir_entry* ent);
+extern int32_t dir_search(struct dir* parent, char* filename,
+                          struct dir_entry* ent);
 
 #endif

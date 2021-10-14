@@ -124,6 +124,7 @@ void task_init(struct task_struct* pthread, char* name, int prio) {
   pthread->elapsed_ticks = 0;
   pthread->pgdir = NULL;
 
+  // FIXME: fd_table should be shared by process
   // init file descriptors
   pthread->fd_table[0] = 0;  // stdin
   pthread->fd_table[1] = 1;  // stdout

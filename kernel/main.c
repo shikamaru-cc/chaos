@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 #include "console.h"
 #include "debug.h"
 #include "init.h"
@@ -11,10 +13,12 @@
 #include "thread.h"
 
 // DEBUG ONLY
+#include "fs.h"
 #include "rand.h"
 #include "stdnull.h"
 
 void u_malloc_test(void);
+void test_fs(void);
 // void disk_test(void* arg);
 
 int main(void) {
@@ -25,6 +29,7 @@ int main(void) {
 
   // process_execute(u_malloc_test, "u_malloc_test");
   // thread_start("disk_test", 31, disk_test, NULL);
+  process_execute(test_fs, "test_fs");
 
   // while(1);
   thread_block(TASK_BLOCKED);
@@ -98,3 +103,37 @@ void disk_test(void* arg) {
   while(1);
 }
 */
+
+void test_fs(void) {
+  int32_t fd;
+  /* fd = open("chloe", O_CREATE); */
+  /* if (fd < 0) { */
+  /*   printf("cannot open %s\n", "chloe"); */
+  /* } */
+  /* fd = open("shikamaru", O_CREATE); */
+  /* if (fd < 0) { */
+  /*   printf("cannot open %s\n", "shikamaru"); */
+  /* } */
+  /* fd = open("duckduckgo", 0); */
+  /* if (fd < 0) { */
+  /*   printf("cannot open %s\n", "duckduckgo"); */
+  /* } */
+
+  fd = open("chloe", O_CREATE);
+  if (fd > 0) {
+    printf("open %s fd %d\n", "chloe", fd);
+  }
+
+  fd = open("shikamaru", O_CREATE);
+  if (fd > 0) {
+    printf("open %s fd %d\n", "shikamaru", fd);
+  }
+
+  fd = open("duckduckgo", 0);
+  if (fd > 0) {
+    printf("open %s fd %d\n", "duckduckgo", fd);
+  }
+
+  while (1)
+    ;
+}

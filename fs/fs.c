@@ -3,6 +3,7 @@
 #include "debug.h"
 #include "dir.h"
 #include "disk.h"
+#include "file.h"
 #include "global.h"
 #include "inode.h"
 #include "kernel/bitmap.h"
@@ -16,14 +17,18 @@
 #include "string.h"
 #include "thread.h"
 
+// Private
 bool fs_load(struct partition_manager* fsm, struct partition* part);
 void fs_make(struct partition_manager* fsm, struct partition* part);
+
+static int32_t get_local_fd(void);
 
 // Public methods
 
 void fs_init(void);
+int32_t sys_open(const char* pathname, int32_t flags);
 
-// --------------------------- Implementation ------------------------------- //
+// Implementation
 
 bool fs_load(struct partition_manager* fsm, struct partition* part) {
   ASSERT(part != NULL)
@@ -164,35 +169,97 @@ void fs_init(void) {
   }
 
   dir_open_root(&cur_partition);
-
-  // FIXME: Test only
-  struct dir_entry de;
-
-  uint32_t i;
-  for (i = 0; i < DIR_ENTRY_PER_BLOCK + 7; i++) {
-    strcpy(de.filename, "shikamaru");
-    de.f_type = TYPE_NORMAL;
-    de.inode_no = get_free_inode_no(&cur_partition);
-    dir_create_entry(&dir_root, &de);
-    sync_inode_no(&cur_partition, de.inode_no);
-  }
-
-  strcpy(de.filename, "chloe");
-  de.f_type = TYPE_NORMAL;
-  de.inode_no = get_free_inode_no(&cur_partition);
-  dir_create_entry(&dir_root, &de);
-  sync_inode_no(&cur_partition, de.inode_no);
-
-  struct dir_entry de2;
-  dir_search(&dir_root, "chloe", &de2);
-  printf("  filename: %s, type: %d, inode_no: %d\n", de2.filename, de2.f_type,
-         de2.inode_no);
-  dir_search(&dir_root, "shikamaru", &de2);
-  printf("  filename: %s, type: %d, inode_no: %d\n", de2.filename, de2.f_type,
-         de2.inode_no);
-
-  // FIXME: end test code
+  file_table_init();
 
   printf("  mount %s as default file system\n", cur_partition.part->name);
   printf("fs_init done\n");
+}
+
+static int32_t get_local_fd(void) {
+  struct task_struct* cur = running_thread();
+
+  int32_t i;
+  for (i = 3; i < MAX_PROC_OPEN_FD; i++) {
+    if (cur->fd_table[i] == -1) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+int32_t sys_open(const char* pathname, int32_t flags) {
+  int32_t fd = get_local_fd();
+  if (fd < 0) {
+    printf("use all fd\n");
+    return -1;
+  }
+
+  char path[FS_MAX_FILENAME];
+  strcpy(path, pathname + 1);
+
+  struct task_struct* cur = running_thread();
+  struct dir* cur_dir = &dir_root;
+  struct dir_entry de;
+
+  char* delim = strrchr(path, '/');
+  // in current path
+  if (delim == NULL) {
+    // found
+    if (dir_search(cur_dir, path, &de) != -1) {
+      int32_t global_fd = file_open(de.inode_no, flags);
+      if (global_fd < 0) {
+        return -1;
+      }
+      // install fd
+      cur->fd_table[fd] = global_fd;
+      return fd;
+    }
+
+    // not found
+    if (flags & O_CREATE) {
+      int32_t global_fd = file_create(cur_dir, path);
+      if (global_fd < 0) {
+        return -1;
+      }
+      // install fd
+      cur->fd_table[fd] = global_fd;
+      return fd;
+    } else {
+      return -1;
+    }
+  }
+
+  // search for last dir
+  struct dir last_dir;
+  *delim = '\0';
+  if (dir_search(cur_dir, path, &de) < 0) {
+    printf("cannot create %s: no such file or directory\n");
+    return -1;
+  }
+
+  last_dir.inode_elem = inode_open(cur_dir->inode_elem->partmgr, de.inode_no);
+  if (last_dir.inode_elem == NULL) {
+    return -1;
+  }
+
+  if (dir_search(&last_dir, delim + 1, &de) != -1) {
+    int32_t global_fd = file_open(de.inode_no, flags);
+    if (global_fd < 0) {
+      return -1;
+    }
+    cur->fd_table[fd] = global_fd;
+    return fd;
+  }
+
+  if (flags & O_CREATE) {
+    int32_t global_fd = file_create(cur_dir, path);
+    if (global_fd < 0) {
+      return -1;
+    }
+    cur->fd_table[fd] = global_fd;
+    return fd;
+  }
+
+  return -1;
 }

@@ -65,6 +65,9 @@ struct inode_elem* inode_create(struct partition_manager* pmgr,
   // inode_elem should be shared in kernel space
   struct inode_elem* inode_elem;
   inode_elem = (struct inode_elem*)kmalloc(sizeof(struct inode_elem));
+  if (inode_elem == NULL) {
+    return NULL;
+  }
 
   // init inode
   struct inode* inode = &inode_elem->inode;
