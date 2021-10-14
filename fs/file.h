@@ -17,5 +17,6 @@ extern void file_table_init(void);
 
 extern int32_t file_create(struct dir* parent, char* filename);
 extern int32_t file_open(uint32_t inode_no, int32_t flags);
+extern int32_t file_write(int32_t global_fd, const void* buf, int32_t size);
 
 #endif
