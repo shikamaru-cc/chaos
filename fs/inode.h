@@ -8,10 +8,10 @@
 
 // NOTE: if modify fields in inode, remember to modify FS_INODE_TABLE_SIZE
 struct inode {
-  uint32_t no;                           // inode no.
-  uint32_t size;                         // dir: entry cnt, normal: file size
-  uint32_t blocks[FS_INODE_NUM_BLOCKS];  // 0 - 11: data block index, 12: extend
-                                         // block index
+  int32_t no;                           // inode no.
+  int32_t size;                         // dir: entry cnt, normal: file size
+  int32_t blocks[FS_INODE_NUM_BLOCKS];  // 0 - 11: data block index, 12: extend
+                                        // block index
 } __attribute__((packed));
 
 struct inode_elem {

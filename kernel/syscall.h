@@ -6,10 +6,11 @@
 
 typedef enum {
   SYS_GETPID,
-  SYS_WRITE,
   SYS_MALLOC,
   SYS_FREE,
-  SYS_OPEN
+  SYS_OPEN,
+  SYS_WRITE,
+  SYS_READ
 } SYSCALL_NUMBER;
 
 typedef void* syscall;
@@ -18,10 +19,11 @@ typedef void* syscall;
 syscall syscall_table[syscall_nr];
 
 pid_t getpid(void);
-uint32_t write(char* str);
 void* malloc(uint32_t size);
 void free(void* va);
 int32_t open(const char* pathname, int32_t flags);
+int32_t write(int32_t fd, const void* buf, int32_t size);
+int32_t read(int32_t fd, void* buf, int32_t size);
 
 void syscall_init(void);
 

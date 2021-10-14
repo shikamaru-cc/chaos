@@ -13,6 +13,7 @@
 #include "thread.h"
 
 // DEBUG ONLY
+#include "file.h"
 #include "fs.h"
 #include "rand.h"
 #include "stdnull.h"
@@ -106,33 +107,37 @@ void disk_test(void* arg) {
 
 void test_fs(void) {
   int32_t fd;
-  /* fd = open("chloe", O_CREATE); */
-  /* if (fd < 0) { */
-  /*   printf("cannot open %s\n", "chloe"); */
-  /* } */
-  /* fd = open("shikamaru", O_CREATE); */
-  /* if (fd < 0) { */
-  /*   printf("cannot open %s\n", "shikamaru"); */
-  /* } */
-  /* fd = open("duckduckgo", 0); */
-  /* if (fd < 0) { */
-  /*   printf("cannot open %s\n", "duckduckgo"); */
-  /* } */
+  int32_t cnt;
+  int32_t total;
 
   fd = open("chloe", O_CREATE);
+  if (fd > 0) {
+    printf("create %s fd %d\n", "chloe", fd);
+  }
+
+  total = 0;
+  char* str = "hello world\n";
+  cnt = write(fd, str, strlen(str));
+  total += cnt;
+  str = "chloe bibi~~~~~!!";
+  cnt = write(fd, str, strlen(str));
+  total += cnt;
+  printf("write %d bytes to chloe\n", total);
+
+  fd = open("chloe", 0);
   if (fd > 0) {
     printf("open %s fd %d\n", "chloe", fd);
   }
 
-  fd = open("shikamaru", O_CREATE);
-  if (fd > 0) {
-    printf("open %s fd %d\n", "shikamaru", fd);
+  char str2[100];
+  char* p = str2;
+  total = 0;
+  while ((cnt = read(fd, p, 5)) != EOF) {
+    total += cnt;
+    p += 5;
   }
-
-  fd = open("duckduckgo", 0);
-  if (fd > 0) {
-    printf("open %s fd %d\n", "duckduckgo", fd);
-  }
+  printf("read %d bytes from chloe\n", total);
+  printf("%s\n", str2);
 
   while (1)
     ;

@@ -18,6 +18,7 @@ void file_table_init(void);
 int32_t file_create(struct dir* parent, char* filename);
 int32_t file_open(uint32_t inode_no, int32_t flags);
 int32_t file_write(int32_t global_fd, const void* buf, int32_t size);
+int32_t file_read(int32_t global_fd, void* buf, int32_t size);
 
 // Private
 static int32_t get_global_fd(void);
@@ -125,21 +126,131 @@ int32_t file_write(int32_t global_fd, const void* buf, int32_t size) {
     }
   }
 
-  char* content = (char*)sys_malloc(BLOCK_SIZE);
+  char* write_buf = (char*)sys_malloc(BLOCK_SIZE);
 
-  if (inode_read(f->inode_elem, block_used - 1, content) < 0) {
+  // write first block
+  int32_t idx = f->fd_pos / BLOCK_SIZE;
+  int32_t off = f->fd_pos % BLOCK_SIZE;
+
+  int32_t write = 0;
+  if (off + size > BLOCK_SIZE) {
+    write = BLOCK_SIZE - off;
+  } else {
+    write = size;
+  }
+
+  if (inode_read(f->inode_elem, idx, write_buf) < 0) {
     PANIC("inode read");
   }
 
-  uint32_t off = f->fd_pos % BLOCK_SIZE;
-  memcpy(content + off, buf, size);
+  memcpy(write_buf + off, buf, write);
 
-  if (inode_write(f->inode_elem, block_used - 1, content) < 0) {
+  if (inode_write(f->inode_elem, idx, write_buf) < 0) {
     PANIC("inode write");
+  }
+
+  idx++;
+  buf += write;
+
+  // write continuous full blocks
+  while (size - write > BLOCK_SIZE) {
+    if (inode_read(f->inode_elem, idx, write_buf) < 0) {
+      PANIC("inode read");
+    }
+
+    memcpy(write_buf, buf, BLOCK_SIZE);
+
+    if (inode_write(f->inode_elem, idx, write_buf) < 0) {
+      PANIC("inode write");
+    }
+
+    idx++;
+    buf += BLOCK_SIZE;
+    write += BLOCK_SIZE;
+  }
+
+  // write last one
+  int32_t rest = size - write;
+  if (rest > 0) {
+    if (inode_read(f->inode_elem, idx, write_buf) < 0) {
+      PANIC("inode read");
+    }
+
+    memcpy(write_buf, buf, rest);
+
+    if (inode_write(f->inode_elem, idx, write_buf) < 0) {
+      PANIC("inode write");
+    }
+  }
+
+  f->inode_elem->inode.size += size;
+  inode_sync(f->inode_elem);
+
+  f->fd_pos += size;
+
+  sys_free(write_buf);
+  return size;
+}
+
+int32_t file_read(int32_t global_fd, void* buf, int32_t size) {
+  struct file* f = &file_table[global_fd];
+  ASSERT(f != NULL);
+
+  int32_t fsize = f->inode_elem->inode.size;
+  if (f->fd_pos == fsize) {
+    return EOF;
+  }
+
+  if (f->fd_pos + size > fsize) {
+    size = fsize - f->fd_pos;
+  }
+
+  void* read_buf = sys_malloc(BLOCK_SIZE);
+
+  int32_t idx = f->fd_pos / BLOCK_SIZE;
+  int32_t off = f->fd_pos % BLOCK_SIZE;
+
+  // read first block
+  int32_t read = 0;
+  if (off + size > BLOCK_SIZE) {
+    read = BLOCK_SIZE - off;
+  } else {
+    read = size;
+  }
+
+  if (inode_read(f->inode_elem, idx, read_buf) < 0) {
+    PANIC("inode read");
+  }
+
+  memcpy(buf, read_buf + off, read);
+
+  idx++;
+  buf += read;
+
+  // read continuous full blocks
+  while (size - read > BLOCK_SIZE) {
+    if (inode_read(f->inode_elem, idx, read_buf) < 0) {
+      PANIC("inode read");
+    }
+
+    memcpy(buf, read_buf, BLOCK_SIZE);
+
+    idx++;
+    buf += BLOCK_SIZE;
+    read += BLOCK_SIZE;
+  }
+
+  // read last one
+  int32_t rest = size - read;
+  if (rest > 0) {
+    if (inode_read(f->inode_elem, idx, read_buf) < 0) {
+      PANIC("inode read");
+    }
+    memcpy(buf, read_buf, rest);
   }
 
   f->fd_pos += size;
 
-  sys_free(content);
+  sys_free(read_buf);
   return size;
 }

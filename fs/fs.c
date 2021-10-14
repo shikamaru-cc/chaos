@@ -1,5 +1,6 @@
 #include "fs.h"
 
+#include "console.h"
 #include "debug.h"
 #include "dir.h"
 #include "disk.h"
@@ -28,6 +29,7 @@ static int32_t get_local_fd(void);
 void fs_init(void);
 int32_t sys_open(const char* pathname, int32_t flags);
 int32_t sys_write(int32_t fd, const void* buf, int32_t size);
+int32_t sys_read(int32_t fd, void* buf, int32_t size);
 
 // Implementation
 
@@ -268,10 +270,29 @@ int32_t sys_open(const char* pathname, int32_t flags) {
 int32_t sys_write(int32_t fd, const void* buf, int32_t size) {
   struct task_struct* cur = running_thread();
   int32_t global_fd = cur->fd_table[fd];
-  if (fd < 0 || global_fd < 0) {
+  if (global_fd < 1) {
     printf("invalid fd\n");
-    return -1;
+    return 0;
+  }
+
+  // stdout and stderr
+  if (global_fd == 1 || global_fd == 2) {
+    console_put_str((char*)buf);
+    return strlen((char*)buf);
   }
 
   return file_write(global_fd, buf, size);
+}
+
+int32_t sys_read(int32_t fd, void* buf, int32_t size) {
+  struct task_struct* cur = running_thread();
+  int32_t global_fd = cur->fd_table[fd];
+
+  // stdout and stderr
+  if (global_fd == 1 || global_fd == 2) {
+    printf("invalid file for read\n");
+    return 0;
+  }
+
+  return file_read(global_fd, buf, size);
 }
