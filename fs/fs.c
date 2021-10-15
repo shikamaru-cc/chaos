@@ -27,9 +27,11 @@ static int32_t get_local_fd(void);
 // Public methods
 
 void fs_init(void);
+
 int32_t sys_open(const char* pathname, int32_t flags);
 int32_t sys_write(int32_t fd, const void* buf, int32_t size);
 int32_t sys_read(int32_t fd, void* buf, int32_t size);
+int32_t sys_lseek(int32_t fd, int32_t offset, int32_t whence);
 
 // Implementation
 
@@ -295,4 +297,46 @@ int32_t sys_read(int32_t fd, void* buf, int32_t size) {
   }
 
   return file_read(global_fd, buf, size);
+}
+
+int32_t sys_lseek(int32_t fd, int32_t offset, int32_t whence) {
+  if (fd < 0) {
+    printf("sys_leek: fd error");
+    return -1;
+  }
+
+  ASSERT(whence > 0 && whence < 4);
+  uint32_t global_fd = running_thread()->fd_table[fd];
+  if (global_fd < 3) {
+    printf("sys_leek: global_fd error");
+    return -1;
+  }
+
+  struct file* f = &file_table[global_fd];
+  if (f == NULL) {
+    printf("sys_leek: cannot open file");
+    return -1;
+  }
+
+  int32_t fsize = f->inode_elem->inode.size;
+  int32_t new_pos;
+  switch (whence) {
+    case SEEK_SET:
+      new_pos = offset;
+      break;
+    case SEEK_CUR:
+      new_pos = f->fd_pos + offset;
+      break;
+    case SEEK_END:
+      new_pos = fsize + offset;
+      break;
+  }
+
+  if (new_pos < 0 || new_pos > fsize) {
+    printf("sys_leek: new pos > file size");
+    return -1;
+  }
+
+  f->fd_pos = new_pos;
+  return f->fd_pos;
 }

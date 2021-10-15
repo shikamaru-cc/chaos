@@ -132,6 +132,7 @@ void test_fs(void) {
   char str2[100];
   char* p = str2;
   total = 0;
+  lseek(fd, 3, SEEK_SET);
   while ((cnt = read(fd, p, 5)) != EOF) {
     total += cnt;
     p += 5;

@@ -19,6 +19,7 @@ void free(void* va);
 int32_t open(const char* pathname, int32_t flags);
 int32_t write(int32_t fd, const void* buf, int32_t size);
 int32_t read(int32_t fd, void* buf, int32_t size);
+int32_t lseek(int32_t fd, int32_t offset, int32_t whence);
 
 void syscall_init(void);
 
@@ -68,6 +69,10 @@ int32_t read(int32_t fd, void* buf, int32_t size) {
   return __syscall3(SYS_READ, fd, buf, size);
 }
 
+int32_t lseek(int32_t fd, int32_t offset, int32_t whence) {
+  return __syscall3(SYS_LSEEK, fd, offset, whence);
+}
+
 void syscall_init(void) {
   put_str("syscall init start\n");
   syscall_table[SYS_GETPID] = sys_getpid;
@@ -76,5 +81,6 @@ void syscall_init(void) {
   syscall_table[SYS_OPEN] = sys_open;
   syscall_table[SYS_WRITE] = sys_write;
   syscall_table[SYS_READ] = sys_read;
+  syscall_table[SYS_LSEEK] = sys_lseek;
   put_str("syscall init done\n");
 }

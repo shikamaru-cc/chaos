@@ -10,7 +10,8 @@ typedef enum {
   SYS_FREE,
   SYS_OPEN,
   SYS_WRITE,
-  SYS_READ
+  SYS_READ,
+  SYS_LSEEK
 } SYSCALL_NUMBER;
 
 typedef void* syscall;
@@ -24,6 +25,7 @@ void free(void* va);
 int32_t open(const char* pathname, int32_t flags);
 int32_t write(int32_t fd, const void* buf, int32_t size);
 int32_t read(int32_t fd, void* buf, int32_t size);
+int32_t lseek(int32_t fd, int32_t offset, int32_t whence);
 
 void syscall_init(void);
 
