@@ -15,6 +15,7 @@
 void inode_sync(struct inode_elem* inode_elem);
 struct inode_elem* inode_create(struct partition_manager* pmgr,
                                 uint32_t inode_no);
+void inode_delete(struct partition_manager* pmgr, uint32_t inode_no);
 struct inode_elem* inode_open(struct partition_manager* pmgr,
                               uint32_t inode_no);
 void inode_close(struct inode_elem* inode_elem);
@@ -85,6 +86,46 @@ struct inode_elem* inode_create(struct partition_manager* pmgr,
   inode_elem->ref = 1;
 
   return inode_elem;
+}
+
+void inode_delete(struct partition_manager* pmgr, uint32_t inode_no) {
+  struct inode_elem* inode_del = inode_open(pmgr, inode_no);
+  if (inode_del == NULL) {
+    printf("inode_delete: inode no error");
+    return;
+  }
+
+  uint32_t* ext_blk = (uint32_t*)sys_malloc(BLOCK_SIZE);
+
+  // release all allocate blocks
+  if (inode_del->inode.blocks[FS_INODE_EXTEND_BLOCK_INDEX] != 0) {
+    inode_read_ext_blocks(inode_del, (char*)ext_blk);
+
+    uint32_t i;
+    for (i = 0; i < FS_INODE_EXTEND_BLOCK_CNT; i++) {
+      if (ext_blk[i] != 0) {
+        release_block_no(pmgr, ext_blk[i]);
+      }
+    }
+  }
+
+  uint32_t i;
+  for (i = 0; i < FS_INODE_NUM_BLOCKS; i++) {
+    if (inode_del->inode.blocks[i] != 0) {
+      release_block_no(pmgr, inode_del->inode.blocks[i]);
+    }
+  }
+
+  sync_block_btmp(pmgr);
+
+  // release inode no
+  release_inode_no(pmgr, inode_no);
+  sync_inode_no(pmgr, inode_no);
+
+  inode_close(inode_del);
+
+  sys_free(ext_blk);
+  return;
 }
 
 // open inode in default file manager

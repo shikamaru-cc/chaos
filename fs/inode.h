@@ -27,6 +27,7 @@ struct list inode_list;
 extern void inode_sync(struct inode_elem* inode_elem);
 extern struct inode_elem* inode_create(struct partition_manager* pmgr,
                                        uint32_t inode_no);
+extern void inode_delete(struct partition_manager* pmgr, uint32_t inode_no);
 extern struct inode_elem* inode_open(struct partition_manager* pmgr,
                                      uint32_t inode_no);
 extern void inode_close(struct inode_elem* inode_elem);
