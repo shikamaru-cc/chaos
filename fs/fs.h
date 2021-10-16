@@ -21,8 +21,10 @@ void fs_init(void);
 #define SEEK_END 3
 
 extern int32_t sys_open(const char* pathname, int32_t flags);
+extern int32_t sys_close(int32_t fd);
 extern int32_t sys_write(int32_t fd, const void* buf, int32_t size);
 extern int32_t sys_read(int32_t fd, void* buf, int32_t size);
 extern int32_t sys_lseek(int32_t fd, int32_t offset, int32_t whence);
+extern int32_t sys_unlink(const char* pathname);
 
 #endif

@@ -17,9 +17,11 @@ pid_t getpid(void);
 void* malloc(uint32_t size);
 void free(void* va);
 int32_t open(const char* pathname, int32_t flags);
+int32_t close(int32_t fd);
 int32_t write(int32_t fd, const void* buf, int32_t size);
 int32_t read(int32_t fd, void* buf, int32_t size);
 int32_t lseek(int32_t fd, int32_t offset, int32_t whence);
+int32_t unlink(const char* pathname);
 
 void syscall_init(void);
 
@@ -61,6 +63,8 @@ int32_t open(const char* pathname, int32_t flags) {
   return __syscall2(SYS_OPEN, pathname, flags);
 }
 
+int32_t close(int32_t fd) { return __syscall1(SYS_CLOSE, fd); }
+
 int32_t write(int32_t fd, const void* buf, int32_t size) {
   return __syscall3(SYS_WRITE, fd, buf, size);
 }
@@ -73,14 +77,20 @@ int32_t lseek(int32_t fd, int32_t offset, int32_t whence) {
   return __syscall3(SYS_LSEEK, fd, offset, whence);
 }
 
+int32_t unlink(const char* pathname) {
+  return __syscall1(SYS_UNLINK, pathname);
+}
+
 void syscall_init(void) {
   put_str("syscall init start\n");
   syscall_table[SYS_GETPID] = sys_getpid;
   syscall_table[SYS_MALLOC] = sys_malloc;
   syscall_table[SYS_FREE] = sys_free;
   syscall_table[SYS_OPEN] = sys_open;
+  syscall_table[SYS_CLOSE] = sys_close;
   syscall_table[SYS_WRITE] = sys_write;
   syscall_table[SYS_READ] = sys_read;
   syscall_table[SYS_LSEEK] = sys_lseek;
+  syscall_table[SYS_UNLINK] = sys_unlink;
   put_str("syscall init done\n");
 }

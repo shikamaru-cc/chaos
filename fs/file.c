@@ -17,6 +17,7 @@ void file_table_init(void);
 
 int32_t file_create(struct dir* parent, char* filename);
 int32_t file_open(uint32_t inode_no, int32_t flags);
+int32_t file_close(int32_t global_fd);
 int32_t file_write(int32_t global_fd, const void* buf, int32_t size);
 int32_t file_read(int32_t global_fd, void* buf, int32_t size);
 
@@ -86,6 +87,22 @@ int32_t file_open(uint32_t inode_no, int32_t flags) {
   file_table[global_fd].fd_pos = 0;
 
   return global_fd;
+}
+
+int32_t file_close(int32_t global_fd) {
+  if (global_fd < 3) {
+    printf("file_close: cannot close stdin stdout and stderr\n");
+    return -1;
+  }
+
+  if (file_table[global_fd].inode_elem == NULL) {
+    printf("file_close: unuse global_fd\n");
+    return -1;
+  }
+
+  inode_close(file_table[global_fd].inode_elem);
+  file_table[global_fd].inode_elem = NULL;
+  return 0;
 }
 
 static int32_t get_global_fd() {

@@ -110,7 +110,7 @@ void test_fs(void) {
   int32_t cnt;
   int32_t total;
 
-  fd = open("chloe", O_CREATE);
+  fd = open("/chloe", O_CREATE);
   if (fd > 0) {
     printf("create %s fd %d\n", "chloe", fd);
   }
@@ -124,9 +124,15 @@ void test_fs(void) {
   total += cnt;
   printf("write %d bytes to chloe\n", total);
 
-  fd = open("chloe", 0);
+  close(fd);
+
+  unlink("/chloe");
+
+  fd = open("/chloe", 0);
   if (fd > 0) {
     printf("open %s fd %d\n", "chloe", fd);
+  } else {
+    goto loop;
   }
 
   char str2[100];
@@ -140,6 +146,7 @@ void test_fs(void) {
   printf("read %d bytes from chloe\n", total);
   printf("%s\n", str2);
 
+loop:
   while (1)
     ;
 }

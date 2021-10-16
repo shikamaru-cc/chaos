@@ -8,10 +8,12 @@
 #include "stdio.h"
 #include "stdnull.h"
 #include "string.h"
+#include "super_block.h"
 
 // Public
 void dir_open_root(struct partition_manager* fsm);
 int32_t dir_create_entry(struct dir* parent, struct dir_entry* ent);
+int32_t dir_delete_entry(struct dir* parent, int32_t inode_no);
 int32_t dir_search(struct dir* parent, char* filename, struct dir_entry* ent);
 
 // Private
@@ -117,6 +119,37 @@ static int32_t dir_search_de(struct dir* parent, char* filename,
   return -1;
 }
 
+int32_t dir_delete_entry(struct dir* parent, int32_t inode_no) {
+  struct dir_entry* dents = (struct dir_entry*)sys_malloc(BLOCK_SIZE);
+  if (dents == NULL) {
+    return -1;
+  }
+
+  uint32_t block_used = inode_block_used(parent->inode_elem);
+
+  uint32_t i;
+  for (i = 0; i < block_used; i++) {
+    inode_read(parent->inode_elem, i, (char*)dents);
+
+    uint32_t j;
+    for (j = 0; j < DIR_ENTRY_PER_BLOCK; j++) {
+      if (dents[j].inode_no == inode_no) {
+        dents[j].inode_no = 0;
+        inode_write(parent->inode_elem, i, (char*)dents);
+
+        parent->inode_elem->inode.size--;
+        inode_sync(parent->inode_elem);
+
+        sys_free(dents);
+        return 0;
+      }
+    }
+  }
+
+  sys_free(dents);
+  return -1;
+}
+
 int32_t dir_search(struct dir* parent, char* pathname, struct dir_entry* ent) {
   char* delim = strchr(pathname, '/');
   if (delim == NULL) {
@@ -129,10 +162,6 @@ int32_t dir_search(struct dir* parent, char* pathname, struct dir_entry* ent) {
   *delim = '/';
 
   if (find < 0) {
-    return -1;
-  }
-
-  if (de.f_type != TYPE_DIR) {
     return -1;
   }
 

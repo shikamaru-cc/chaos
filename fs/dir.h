@@ -13,7 +13,7 @@ enum file_type {
 struct dir_entry {
   char filename[FS_MAX_FILENAME];
   enum file_type f_type;
-  uint32_t inode_no;
+  int32_t inode_no;
 } __attribute__((packed));
 
 #define DIR_ENTRY_PER_BLOCK (BLOCK_SIZE / (sizeof(struct dir_entry)))
@@ -27,6 +27,7 @@ struct dir dir_root;
 
 extern void dir_open_root(struct partition_manager* fsm);
 extern int32_t dir_create_entry(struct dir* parent, struct dir_entry* ent);
+extern int32_t dir_delete_entry(struct dir* parent, int32_t inode_no);
 extern int32_t dir_search(struct dir* parent, char* filename,
                           struct dir_entry* ent);
 

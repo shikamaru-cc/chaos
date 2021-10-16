@@ -29,9 +29,11 @@ static int32_t get_local_fd(void);
 void fs_init(void);
 
 int32_t sys_open(const char* pathname, int32_t flags);
+int32_t sys_close(int32_t fd);
 int32_t sys_write(int32_t fd, const void* buf, int32_t size);
 int32_t sys_read(int32_t fd, void* buf, int32_t size);
 int32_t sys_lseek(int32_t fd, int32_t offset, int32_t whence);
+int32_t sys_unlink(const char* pathname);
 
 // Implementation
 
@@ -194,17 +196,24 @@ static int32_t get_local_fd(void) {
 }
 
 int32_t sys_open(const char* pathname, int32_t flags) {
+  char path[FS_MAX_FILENAME];
+  struct dir* cur_dir;
+
+  if (pathname[0] == '/') {
+    cur_dir = &dir_root;
+    strcpy(path, pathname + 1);
+  } else {
+    printf("sys_open: only support realpath now");
+    return -1;
+  }
+
   int32_t fd = get_local_fd();
   if (fd < 0) {
     printf("use all fd\n");
     return -1;
   }
 
-  char path[FS_MAX_FILENAME];
-  strcpy(path, pathname + 1);
-
   struct task_struct* cur = running_thread();
-  struct dir* cur_dir = &dir_root;
   struct dir_entry de;
 
   char* delim = strrchr(path, '/');
@@ -231,6 +240,7 @@ int32_t sys_open(const char* pathname, int32_t flags) {
       cur->fd_table[fd] = global_fd;
       return fd;
     } else {
+      printf("sys_open: no such file or directory %s\n", pathname);
       return -1;
     }
   }
@@ -239,7 +249,7 @@ int32_t sys_open(const char* pathname, int32_t flags) {
   struct dir last_dir;
   *delim = '\0';
   if (dir_search(cur_dir, path, &de) < 0) {
-    printf("cannot create %s: no such file or directory\n");
+    printf("sys_open: no such file or directory %s\n", pathname);
     return -1;
   }
 
@@ -266,7 +276,18 @@ int32_t sys_open(const char* pathname, int32_t flags) {
     return fd;
   }
 
+  printf("sys_open: no such file or directory %s\n", pathname);
   return -1;
+}
+
+int32_t sys_close(int32_t fd) {
+  int32_t* fd_table = running_thread()->fd_table;
+  int32_t global_fd = fd_table[fd];
+  if (file_close(global_fd) < 0) {
+    return -1;
+  }
+  fd_table[fd] = -1;
+  return 0;
 }
 
 int32_t sys_write(int32_t fd, const void* buf, int32_t size) {
@@ -339,4 +360,51 @@ int32_t sys_lseek(int32_t fd, int32_t offset, int32_t whence) {
 
   f->fd_pos = new_pos;
   return f->fd_pos;
+}
+
+int32_t sys_unlink(const char* pathname) {
+  char path[FS_MAX_FILENAME];
+  struct dir* cur_dir;
+  if (pathname[0] == '/') {
+    cur_dir = &dir_root;
+    strcpy(path, pathname + 1);
+  } else {
+    printf("sys_unlink: only support realpath now");
+    return -1;
+  }
+
+  struct dir_entry de;
+
+  char* delim = strrchr(path, '/');
+  if (delim == NULL) {
+    // in current path
+    if (dir_search(cur_dir, path, &de) < 0) {
+      printf("sys_unlink: no such file or directory %s\n", path);
+      return -1;
+    }
+  } else {
+    // search for last dir
+    struct dir last_dir;
+    *delim = '\0';
+    if (dir_search(cur_dir, path, &de) < 0) {
+      printf("sys_unlink: no such file or directory %s\n", path);
+      return -1;
+    }
+
+    last_dir.inode_elem = inode_open(cur_dir->inode_elem->partmgr, de.inode_no);
+    if (last_dir.inode_elem == NULL) {
+      printf("sys_unlink: cannot open inode\n");
+      return -1;
+    }
+
+    if (dir_search(&last_dir, delim + 1, &de) < 0) {
+      printf("sys_unlink: no such file or directory %s\n", path);
+      return -1;
+    }
+  }
+
+  // FIXME: following two ops are not atomic
+  dir_delete_entry(cur_dir, de.inode_no);
+  inode_delete(cur_dir->inode_elem->partmgr, de.inode_no);
+  return 0;
 }
