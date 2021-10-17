@@ -12,6 +12,9 @@
 
 // Public
 void dir_open_root(struct partition_manager* fsm);
+struct dir* dir_open(struct partition_manager* pmgr, int32_t inode_no);
+int32_t dir_close(struct dir* dir);
+struct dir_entry* dir_read(struct dir* dir);
 int32_t dir_create_entry(struct dir* parent, struct dir_entry* ent);
 int32_t dir_delete_entry(struct dir* parent, int32_t inode_no);
 int32_t dir_search(struct dir* parent, char* filename, struct dir_entry* ent);
@@ -25,6 +28,53 @@ void dir_open_root(struct partition_manager* fsm) {
   struct inode_elem* root_inode_elem =
       inode_open(fsm, fsm->sblock->root_inode_no);
   dir_root.inode_elem = root_inode_elem;
+}
+
+struct dir* dir_open(struct partition_manager* pmgr, int32_t inode_no) {
+  struct dir* dir = (struct dir*)sys_malloc(sizeof(struct dir));
+  if (dir == NULL) {
+    return NULL;
+  }
+
+  dir->inode_elem = inode_open(pmgr, inode_no);
+  if (dir->inode_elem == NULL) {
+    sys_free(dir);
+    return NULL;
+  }
+  dir->d_pos = 0;
+  return dir;
+}
+
+int32_t dir_close(struct dir* dir) {
+  if (dir == &dir_root) {
+    return -1;
+  }
+  inode_close(dir->inode_elem);
+  sys_free(dir);
+  return 0;
+}
+
+struct dir_entry* dir_read(struct dir* dir) {
+  int32_t slot = inode_block_used(dir->inode_elem) * DIR_ENTRY_PER_BLOCK;
+  if (dir->d_pos >= slot) {
+    return NULL;
+  }
+
+  struct dir_entry* de = (struct dir_entry*)dir->d_buf;
+  while (dir->d_pos < slot) {
+    int32_t off = dir->d_pos % DIR_ENTRY_PER_BLOCK;
+    if (off == 0) {
+      int32_t idx = dir->d_pos / DIR_ENTRY_PER_BLOCK;
+      inode_read(dir->inode_elem, idx, dir->d_buf);
+    }
+
+    dir->d_pos++;
+    if (de[off].inode_no != 0) {
+      return &de[off];
+    }
+  }
+
+  return NULL;
 }
 
 int32_t dir_create_entry(struct dir* parent, struct dir_entry* ent) {

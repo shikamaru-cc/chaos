@@ -27,5 +27,8 @@ extern int32_t sys_read(int32_t fd, void* buf, int32_t size);
 extern int32_t sys_lseek(int32_t fd, int32_t offset, int32_t whence);
 extern int32_t sys_unlink(const char* pathname);
 extern int32_t sys_mkdir(const char* pathname);
+extern struct dir* sys_opendir(const char* name);
+extern int32_t sys_closedir(struct dir* dir);
+extern struct dir_entry* sys_readdir(struct dir* dir);
 
 #endif

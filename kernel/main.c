@@ -2,6 +2,7 @@
 
 #include "console.h"
 #include "debug.h"
+#include "dir.h"
 #include "init.h"
 #include "interrupt.h"
 #include "kernel/print.h"
@@ -110,7 +111,15 @@ void test_fs(void) {
   int32_t cnt;
   int32_t total;
 
-  fd = open("/chloe", O_CREATE);
+  mkdir("/root");
+  mkdir("/root/hello");
+  mkdir("/root/world");
+
+  fd = open("/root/shikamaru", O_CREATE);
+  close(fd);
+  unlink("/root/shikamaru");
+
+  fd = open("/root/chloe", O_CREATE);
   if (fd > 0) {
     printf("create %s fd %d\n", "chloe", fd);
   }
@@ -136,8 +145,14 @@ void test_fs(void) {
   close(fd);
 
   // unlink("/chloe");
+  struct dir* dir = opendir("/root");
+  struct dir_entry* de;
+  while ((de = readdir(dir)) != NULL) {
+    printf("%s %d %d\n", de->filename, de->f_type, de->inode_no);
+  }
+  closedir(dir);
 
-  fd = open("/chloe", 0);
+  fd = open("/root/chloe", 0);
   if (fd > 0) {
     printf("open %s fd %d\n", "chloe", fd);
   } else {

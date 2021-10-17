@@ -271,7 +271,7 @@ int32_t sys_open(const char* pathname, int32_t flags) {
   }
 
   if (flags & O_CREATE) {
-    int32_t global_fd = file_create(cur_dir, path);
+    int32_t global_fd = file_create(&last_dir, delim + 1);
     if (global_fd < 0) {
       inode_close(last_dir.inode_elem);
       return -1;
@@ -423,4 +423,157 @@ int32_t sys_unlink(const char* pathname) {
   return 0;
 }
 
-int32_t sys_mkdir(const char* pathname) { return -1; }
+int32_t sys_mkdir(const char* pathname) {
+  char path[FS_MAX_FILENAME];
+  struct dir* cur_dir;
+  if (pathname[0] == '/') {
+    cur_dir = &dir_root;
+    strcpy(path, pathname + 1);
+  } else {
+    printf("sys_unlink: only support realpath now");
+    return -1;
+  }
+
+  struct dir_entry de;
+
+  char* delim = strrchr(path, '/');
+  if (delim == NULL) {
+    // in current path
+    if (dir_search(cur_dir, path, &de) != -1) {
+      printf("sys_mkdir: directory %s already exist\n", pathname);
+      return -1;
+    }
+
+    de.inode_no = get_free_inode_no(cur_dir->inode_elem->partmgr);
+    if (de.inode_no < 0) {
+      printf("sys_mkdir: get inode no fail\n");
+      return -1;
+    }
+    strcpy(de.filename, path);
+    de.f_type = TYPE_DIR;
+
+    struct inode_elem* inode_elem =
+        inode_create(cur_dir->inode_elem->partmgr, de.inode_no);
+    if (inode_elem == NULL) {
+      release_inode_no(cur_dir->inode_elem->partmgr, de.inode_no);
+      return -1;
+    }
+
+    if (dir_create_entry(cur_dir, &de) < 0) {
+      printf("sys_mkdir: create new directory entry fail\n");
+      inode_close(inode_elem);
+      release_inode_no(cur_dir->inode_elem->partmgr, de.inode_no);
+      return -1;
+    }
+
+    sync_inode_no(cur_dir->inode_elem->partmgr, de.inode_no);
+    inode_sync(inode_elem);
+    inode_close(inode_elem);
+
+    return 0;
+  }
+
+  // search for last dir
+  struct dir last_dir;
+  *delim = '\0';
+  if (dir_search(cur_dir, path, &de) < 0) {
+    printf("sys_mkdir: no such file or directory %s\n", path);
+    return -1;
+  }
+
+  last_dir.inode_elem = inode_open(cur_dir->inode_elem->partmgr, de.inode_no);
+  if (last_dir.inode_elem == NULL) {
+    printf("sys_mkdir: cannot open inode\n");
+    return -1;
+  }
+
+  if (dir_search(&last_dir, delim + 1, &de) != -1) {
+    printf("sys_mkdir: directory %s already exist\n", pathname);
+    inode_close(last_dir.inode_elem);
+    return -1;
+  }
+
+  de.inode_no = get_free_inode_no(cur_dir->inode_elem->partmgr);
+  if (de.inode_no < 0) {
+    printf("sys_mkdir: get inode no fail\n");
+    return -1;
+  }
+  strcpy(de.filename, delim + 1);
+  de.f_type = TYPE_DIR;
+
+  struct inode_elem* inode_elem =
+      inode_create(cur_dir->inode_elem->partmgr, de.inode_no);
+  if (inode_elem == NULL) {
+    inode_close(last_dir.inode_elem);
+    release_inode_no(cur_dir->inode_elem->partmgr, de.inode_no);
+    return -1;
+  }
+
+  if (dir_create_entry(&last_dir, &de) < 0) {
+    printf("sys_mkdir: create new directory entry fail\n");
+    inode_close(last_dir.inode_elem);
+    release_inode_no(cur_dir->inode_elem->partmgr, de.inode_no);
+    inode_close(inode_elem);
+    return -1;
+  }
+
+  sync_inode_no(cur_dir->inode_elem->partmgr, de.inode_no);
+  inode_sync(inode_elem);
+  inode_close(inode_elem);
+  inode_close(last_dir.inode_elem);
+
+  return 0;
+}
+
+struct dir* sys_opendir(const char* name) {
+  char path[FS_MAX_FILENAME];
+  struct dir* cur_dir;
+
+  if (name[0] == '/') {
+    cur_dir = &dir_root;
+    strcpy(path, name + 1);
+  } else {
+    printf("sys_opendir: only support realpath now");
+    return NULL;
+  }
+
+  struct dir_entry de;
+  char* delim = strrchr(path, '/');
+  if (delim == NULL) {
+    // in current path
+    if (dir_search(cur_dir, path, &de) < 0) {
+      printf("sys_opendir: no such file or directory %s\n", name);
+      return NULL;
+    }
+
+    return dir_open(cur_dir->inode_elem->partmgr, de.inode_no);
+  }
+
+  // find last dir
+  *delim = '\0';
+  if (dir_search(cur_dir, path, &de) < 0) {
+    printf("sys_opendir: no such file or directory %s\n", name);
+    return NULL;
+  }
+
+  struct dir* last_dir = dir_open(cur_dir->inode_elem->partmgr, de.inode_no);
+  if (dir_search(last_dir, delim + 1, &de) < 0) {
+    printf("sys_opendir: no such file or directory %s\n", name);
+    dir_close(last_dir);
+    return NULL;
+  }
+
+  struct dir* dir = dir_open(last_dir->inode_elem->partmgr, de.inode_no);
+  dir_close(last_dir);
+  return dir;
+}
+
+int32_t sys_closedir(struct dir* dir) {
+  ASSERT(dir != NULL);
+  return dir_close(dir);
+}
+
+struct dir_entry* sys_readdir(struct dir* dir) {
+  ASSERT(dir != NULL);
+  return dir_read(dir);
+}

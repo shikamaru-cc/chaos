@@ -14,6 +14,10 @@ typedef enum {
   SYS_READ,
   SYS_LSEEK,
   SYS_UNLINK,
+  SYS_MKDIR,
+  SYS_OPENDIR,
+  SYS_CLOSEDIR,
+  SYS_READDIR,
 } SYSCALL_NUMBER;
 
 typedef void* syscall;
@@ -30,6 +34,10 @@ int32_t write(int32_t fd, const void* buf, int32_t size);
 int32_t read(int32_t fd, void* buf, int32_t size);
 int32_t lseek(int32_t fd, int32_t offset, int32_t whence);
 int32_t unlink(const char* pathname);
+int32_t mkdir(const char* pathname);
+struct dir* opendir(const char* name);
+int32_t closedir(struct dir* dir);
+struct dir_entry* readdir(struct dir* dir);
 
 void syscall_init(void);
 

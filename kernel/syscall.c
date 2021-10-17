@@ -22,6 +22,10 @@ int32_t write(int32_t fd, const void* buf, int32_t size);
 int32_t read(int32_t fd, void* buf, int32_t size);
 int32_t lseek(int32_t fd, int32_t offset, int32_t whence);
 int32_t unlink(const char* pathname);
+int32_t mkdir(const char* pathname);
+struct dir* opendir(const char* name);
+int32_t closedir(struct dir* dir);
+struct dir_entry* readdir(struct dir* dir);
 
 void syscall_init(void);
 
@@ -81,6 +85,18 @@ int32_t unlink(const char* pathname) {
   return __syscall1(SYS_UNLINK, pathname);
 }
 
+int32_t mkdir(const char* pathname) { return __syscall1(SYS_MKDIR, pathname); }
+
+struct dir* opendir(const char* name) {
+  return (struct dir*)__syscall1(SYS_OPENDIR, name);
+}
+
+int32_t closedir(struct dir* dir) { return __syscall1(SYS_CLOSEDIR, dir); }
+
+struct dir_entry* readdir(struct dir* dir) {
+  return (struct dir_entry*)__syscall1(SYS_READDIR, dir);
+}
+
 void syscall_init(void) {
   put_str("syscall init start\n");
   syscall_table[SYS_GETPID] = sys_getpid;
@@ -92,5 +108,9 @@ void syscall_init(void) {
   syscall_table[SYS_READ] = sys_read;
   syscall_table[SYS_LSEEK] = sys_lseek;
   syscall_table[SYS_UNLINK] = sys_unlink;
+  syscall_table[SYS_MKDIR] = sys_mkdir;
+  syscall_table[SYS_OPENDIR] = sys_opendir;
+  syscall_table[SYS_CLOSEDIR] = sys_closedir;
+  syscall_table[SYS_READDIR] = sys_readdir;
   put_str("syscall init done\n");
 }
