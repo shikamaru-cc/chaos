@@ -119,14 +119,23 @@ void test_fs(void) {
   char* str = "hello world\n";
   cnt = write(fd, str, strlen(str));
   total += cnt;
-  str = "chloe bibi~~~~~!!";
+
+  str = "duckduck";
+  uint32_t i;
+  for (i = 0; i < 869; i++) {
+    cnt = write(fd, str, strlen(str));
+    total += cnt;
+  }
+
+  str = "hello world\n";
   cnt = write(fd, str, strlen(str));
   total += cnt;
+
   printf("write %d bytes to chloe\n", total);
 
   close(fd);
 
-  unlink("/chloe");
+  // unlink("/chloe");
 
   fd = open("/chloe", 0);
   if (fd > 0) {
@@ -135,16 +144,18 @@ void test_fs(void) {
     goto loop;
   }
 
-  char str2[100];
+  char* str2 = malloc(10000);
+  memset(str2, 0, 10000);
   char* p = str2;
   total = 0;
-  lseek(fd, 3, SEEK_SET);
+  // lseek(fd, 3, SEEK_SET);
   while ((cnt = read(fd, p, 5)) != EOF) {
     total += cnt;
     p += 5;
   }
+
   printf("read %d bytes from chloe\n", total);
-  printf("%s\n", str2);
+  printf("%s", str2 + 860 * 8);
 
 loop:
   while (1)

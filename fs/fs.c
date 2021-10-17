@@ -34,6 +34,7 @@ int32_t sys_write(int32_t fd, const void* buf, int32_t size);
 int32_t sys_read(int32_t fd, void* buf, int32_t size);
 int32_t sys_lseek(int32_t fd, int32_t offset, int32_t whence);
 int32_t sys_unlink(const char* pathname);
+int32_t sys_mkdir(const char* pathname);
 
 // Implementation
 
@@ -261,22 +262,27 @@ int32_t sys_open(const char* pathname, int32_t flags) {
   if (dir_search(&last_dir, delim + 1, &de) != -1) {
     int32_t global_fd = file_open(de.inode_no, flags);
     if (global_fd < 0) {
+      inode_close(last_dir.inode_elem);
       return -1;
     }
     cur->fd_table[fd] = global_fd;
+    inode_close(last_dir.inode_elem);
     return fd;
   }
 
   if (flags & O_CREATE) {
     int32_t global_fd = file_create(cur_dir, path);
     if (global_fd < 0) {
+      inode_close(last_dir.inode_elem);
       return -1;
     }
     cur->fd_table[fd] = global_fd;
+    inode_close(last_dir.inode_elem);
     return fd;
   }
 
   printf("sys_open: no such file or directory %s\n", pathname);
+  inode_close(last_dir.inode_elem);
   return -1;
 }
 
@@ -373,6 +379,8 @@ int32_t sys_unlink(const char* pathname) {
     return -1;
   }
 
+  bool open_new_inode = false;
+  struct dir last_dir;
   struct dir_entry de;
 
   char* delim = strrchr(path, '/');
@@ -384,7 +392,6 @@ int32_t sys_unlink(const char* pathname) {
     }
   } else {
     // search for last dir
-    struct dir last_dir;
     *delim = '\0';
     if (dir_search(cur_dir, path, &de) < 0) {
       printf("sys_unlink: no such file or directory %s\n", path);
@@ -396,9 +403,11 @@ int32_t sys_unlink(const char* pathname) {
       printf("sys_unlink: cannot open inode\n");
       return -1;
     }
+    open_new_inode = true;
 
     if (dir_search(&last_dir, delim + 1, &de) < 0) {
       printf("sys_unlink: no such file or directory %s\n", path);
+      inode_close(last_dir.inode_elem);
       return -1;
     }
   }
@@ -406,5 +415,12 @@ int32_t sys_unlink(const char* pathname) {
   // FIXME: following two ops are not atomic
   dir_delete_entry(cur_dir, de.inode_no);
   inode_delete(cur_dir->inode_elem->partmgr, de.inode_no);
+
+  if (open_new_inode) {
+    inode_close(last_dir.inode_elem);
+  }
+
   return 0;
 }
+
+int32_t sys_mkdir(const char* pathname) { return -1; }

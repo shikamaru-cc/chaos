@@ -26,5 +26,6 @@ extern int32_t sys_write(int32_t fd, const void* buf, int32_t size);
 extern int32_t sys_read(int32_t fd, void* buf, int32_t size);
 extern int32_t sys_lseek(int32_t fd, int32_t offset, int32_t whence);
 extern int32_t sys_unlink(const char* pathname);
+extern int32_t sys_mkdir(const char* pathname);
 
 #endif
