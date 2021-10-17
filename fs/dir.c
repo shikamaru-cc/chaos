@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 
+#include "debug.h"
 #include "disk.h"
 #include "inode.h"
 #include "memory.h"
@@ -15,6 +16,7 @@ void dir_open_root(struct partition_manager* fsm);
 struct dir* dir_open(struct partition_manager* pmgr, int32_t inode_no);
 int32_t dir_close(struct dir* dir);
 struct dir_entry* dir_read(struct dir* dir);
+bool dir_is_empty(struct dir* parent);
 int32_t dir_create_entry(struct dir* parent, struct dir_entry* ent);
 int32_t dir_delete_entry(struct dir* parent, int32_t inode_no);
 int32_t dir_search(struct dir* parent, char* filename, struct dir_entry* ent);
@@ -75,6 +77,11 @@ struct dir_entry* dir_read(struct dir* dir) {
   }
 
   return NULL;
+}
+
+bool dir_is_empty(struct dir* dir) {
+  ASSERT(dir != NULL);
+  return dir->inode_elem->inode.size == 0;
 }
 
 int32_t dir_create_entry(struct dir* parent, struct dir_entry* ent) {

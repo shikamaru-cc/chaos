@@ -30,5 +30,6 @@ extern int32_t sys_mkdir(const char* pathname);
 extern struct dir* sys_opendir(const char* name);
 extern int32_t sys_closedir(struct dir* dir);
 extern struct dir_entry* sys_readdir(struct dir* dir);
+extern int32_t sys_rmdir(const char* name);
 
 #endif

@@ -26,6 +26,7 @@ int32_t mkdir(const char* pathname);
 struct dir* opendir(const char* name);
 int32_t closedir(struct dir* dir);
 struct dir_entry* readdir(struct dir* dir);
+int32_t rmdir(const char* name);
 
 void syscall_init(void);
 
@@ -97,6 +98,8 @@ struct dir_entry* readdir(struct dir* dir) {
   return (struct dir_entry*)__syscall1(SYS_READDIR, dir);
 }
 
+int32_t rmdir(const char* name) { return __syscall1(SYS_RMDIR, name); }
+
 void syscall_init(void) {
   put_str("syscall init start\n");
   syscall_table[SYS_GETPID] = sys_getpid;
@@ -112,5 +115,6 @@ void syscall_init(void) {
   syscall_table[SYS_OPENDIR] = sys_opendir;
   syscall_table[SYS_CLOSEDIR] = sys_closedir;
   syscall_table[SYS_READDIR] = sys_readdir;
+  syscall_table[SYS_RMDIR] = sys_rmdir;
   put_str("syscall init done\n");
 }

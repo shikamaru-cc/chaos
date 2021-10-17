@@ -172,6 +172,30 @@ void test_fs(void) {
   printf("read %d bytes from chloe\n", total);
   printf("%s", str2 + 860 * 8);
 
+  close(fd);
+
+  fd = open("/something", O_CREATE);
+  close(fd);
+
+  rmdir("/root");
+  rmdir("/root/hello");
+  rmdir("/root/world");
+  unlink("/root/chloe");
+
+  dir = opendir("/root");
+  while ((de = readdir(dir)) != NULL) {
+    printf("%s %d %d\n", de->filename, de->f_type, de->inode_no);
+  }
+  closedir(dir);
+
+  rmdir("/root");
+
+  dir = opendir("/");
+  while ((de = readdir(dir)) != NULL) {
+    printf("%s %d %d\n", de->filename, de->f_type, de->inode_no);
+  }
+  closedir(dir);
+
 loop:
   while (1)
     ;

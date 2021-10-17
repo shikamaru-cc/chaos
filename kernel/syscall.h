@@ -18,6 +18,7 @@ typedef enum {
   SYS_OPENDIR,
   SYS_CLOSEDIR,
   SYS_READDIR,
+  SYS_RMDIR,
 } SYSCALL_NUMBER;
 
 typedef void* syscall;
@@ -38,6 +39,7 @@ int32_t mkdir(const char* pathname);
 struct dir* opendir(const char* name);
 int32_t closedir(struct dir* dir);
 struct dir_entry* readdir(struct dir* dir);
+int32_t rmdir(const char* name);
 
 void syscall_init(void);
 

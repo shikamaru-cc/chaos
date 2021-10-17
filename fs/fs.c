@@ -35,6 +35,10 @@ int32_t sys_read(int32_t fd, void* buf, int32_t size);
 int32_t sys_lseek(int32_t fd, int32_t offset, int32_t whence);
 int32_t sys_unlink(const char* pathname);
 int32_t sys_mkdir(const char* pathname);
+struct dir* sys_opendir(const char* name);
+int32_t sys_closedir(struct dir* dir);
+struct dir_entry* sys_readdir(struct dir* dir);
+int32_t sys_rmdir(const char* name);
 
 // Implementation
 
@@ -379,8 +383,6 @@ int32_t sys_unlink(const char* pathname) {
     return -1;
   }
 
-  bool open_new_inode = false;
-  struct dir last_dir;
   struct dir_entry de;
 
   char* delim = strrchr(path, '/');
@@ -390,35 +392,39 @@ int32_t sys_unlink(const char* pathname) {
       printf("sys_unlink: no such file or directory %s\n", path);
       return -1;
     }
-  } else {
-    // search for last dir
-    *delim = '\0';
-    if (dir_search(cur_dir, path, &de) < 0) {
-      printf("sys_unlink: no such file or directory %s\n", path);
-      return -1;
-    }
 
-    last_dir.inode_elem = inode_open(cur_dir->inode_elem->partmgr, de.inode_no);
-    if (last_dir.inode_elem == NULL) {
-      printf("sys_unlink: cannot open inode\n");
-      return -1;
-    }
-    open_new_inode = true;
+    // FIXME: following two ops are not atomic
+    dir_delete_entry(cur_dir, de.inode_no);
+    inode_delete(cur_dir->inode_elem->partmgr, de.inode_no);
 
-    if (dir_search(&last_dir, delim + 1, &de) < 0) {
-      printf("sys_unlink: no such file or directory %s\n", path);
-      inode_close(last_dir.inode_elem);
-      return -1;
-    }
+    return 0;
+  }
+
+  struct dir last_dir;
+
+  // search for last dir
+  *delim = '\0';
+  if (dir_search(cur_dir, path, &de) < 0) {
+    printf("sys_unlink: no such file or directory %s\n", path);
+    return -1;
+  }
+
+  last_dir.inode_elem = inode_open(cur_dir->inode_elem->partmgr, de.inode_no);
+  if (last_dir.inode_elem == NULL) {
+    printf("sys_unlink: cannot open inode\n");
+    return -1;
+  }
+
+  if (dir_search(&last_dir, delim + 1, &de) < 0) {
+    printf("sys_unlink: no such file or directory %s\n", path);
+    inode_close(last_dir.inode_elem);
+    return -1;
   }
 
   // FIXME: following two ops are not atomic
-  dir_delete_entry(cur_dir, de.inode_no);
-  inode_delete(cur_dir->inode_elem->partmgr, de.inode_no);
-
-  if (open_new_inode) {
-    inode_close(last_dir.inode_elem);
-  }
+  dir_delete_entry(&last_dir, de.inode_no);
+  inode_delete(last_dir.inode_elem->partmgr, de.inode_no);
+  inode_close(last_dir.inode_elem);
 
   return 0;
 }
@@ -430,7 +436,7 @@ int32_t sys_mkdir(const char* pathname) {
     cur_dir = &dir_root;
     strcpy(path, pathname + 1);
   } else {
-    printf("sys_unlink: only support realpath now");
+    printf("sys_mkdir: only support realpath now");
     return -1;
   }
 
@@ -537,6 +543,10 @@ struct dir* sys_opendir(const char* name) {
     return NULL;
   }
 
+  if (strlen(path) == 0) {
+    return &dir_root;
+  }
+
   struct dir_entry de;
   char* delim = strrchr(path, '/');
   if (delim == NULL) {
@@ -576,4 +586,79 @@ int32_t sys_closedir(struct dir* dir) {
 struct dir_entry* sys_readdir(struct dir* dir) {
   ASSERT(dir != NULL);
   return dir_read(dir);
+}
+
+int32_t sys_rmdir(const char* name) {
+  char path[FS_MAX_FILENAME];
+  struct dir* cur_dir;
+
+  if (name[0] == '/') {
+    cur_dir = &dir_root;
+    strcpy(path, name + 1);
+  } else {
+    printf("sys_rmdir: only support realpath now");
+    return -1;
+  }
+
+  struct dir_entry de;
+  char* delim = strrchr(path, '/');
+  if (delim == NULL) {
+    // in current path
+    if (dir_search(cur_dir, path, &de) < 0) {
+      printf("sys_rmdir: no such file or directory %s\n", name);
+      return -1;
+    }
+
+    if (de.f_type != TYPE_DIR) {
+      printf("sys_rmdir: file %s is not a directory\n", name);
+      return -1;
+    }
+
+    struct dir* dir_del = dir_open(cur_dir->inode_elem->partmgr, de.inode_no);
+    if (!dir_is_empty(dir_del)) {
+      printf("sys_rmdir: try to delete an unempty directory %s\n", name);
+      dir_close(dir_del);
+      return -1;
+    }
+
+    dir_delete_entry(cur_dir, de.inode_no);
+    inode_delete(cur_dir->inode_elem->partmgr, de.inode_no);
+
+    dir_close(dir_del);
+    return 0;
+  }
+
+  // find last dir
+  *delim = '\0';
+  if (dir_search(cur_dir, path, &de) < 0) {
+    printf("sys_rmdir: no such file or directory %s\n", name);
+    return -1;
+  }
+
+  struct dir* last_dir = dir_open(cur_dir->inode_elem->partmgr, de.inode_no);
+  if (dir_search(last_dir, delim + 1, &de) < 0) {
+    printf("sys_rmdir: no such file or directory %s\n", name);
+    dir_close(last_dir);
+    return -1;
+  }
+
+  if (de.f_type != TYPE_DIR) {
+    printf("sys_rmdir: file %s is not a directory\n", name);
+    return -1;
+  }
+
+  struct dir* dir_del = dir_open(last_dir->inode_elem->partmgr, de.inode_no);
+  if (!dir_is_empty(dir_del)) {
+    printf("sys_rmdir: try to delete an unempty directory %s\n", name);
+    dir_close(dir_del);
+    dir_close(last_dir);
+    return -1;
+  }
+
+  dir_delete_entry(last_dir, de.inode_no);
+  inode_delete(last_dir->inode_elem->partmgr, de.inode_no);
+
+  dir_close(dir_del);
+  dir_close(last_dir);
+  return 0;
 }
